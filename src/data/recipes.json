@@ -1,0 +1,121 @@
+
+[
+  {
+    "id": "tomato-pasta",
+    "name": "Tomato Pasta",
+    "category": "Lunch",
+    "prepMinutes": 10,
+    "cookMinutes": 15,
+    "servings": 2,
+    "ingredients": [
+      { "name": "pasta", "quantity": 200, "unit": "g" },
+      { "name": "tomato", "quantity": 3, "unit": "pieces" },
+      { "name": "garlic", "quantity": 2, "unit": "cloves" },
+      { "name": "olive oil", "quantity": 1, "unit": "tbsp" },
+      { "name": "salt", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      { "instruction": "Cook the pasta according to the packet instructions.", "timerSeconds": 600 },
+      { "instruction": "Heat olive oil and cook the chopped garlic and tomatoes into a sauce.", "timerSeconds": 300 },
+      { "instruction": "Mix the drained pasta with the sauce and season to taste.", "timerSeconds": 60 }
+    ]
+  },
+  {
+    "id": "masala-omelette",
+    "name": "Masala Omelette",
+    "category": "Breakfast",
+    "prepMinutes": 5,
+    "cookMinutes": 7,
+    "servings": 1,
+    "ingredients": [
+      { "name": "egg", "quantity": 2, "unit": "pieces" },
+      { "name": "onion", "quantity": 0.5, "unit": "pieces" },
+      { "name": "green chilli", "quantity": 1, "unit": "pieces" },
+      { "name": "salt", "quantity": 0.25, "unit": "tsp" },
+      { "name": "oil", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      { "instruction": "Beat the eggs with salt, chopped onion, and green chilli.", "timerSeconds": 60 },
+      { "instruction": "Heat oil in a pan and pour in the egg mixture.", "timerSeconds": 60 },
+      { "instruction": "Cook until set, flip carefully, and cook the other side until done.", "timerSeconds": 300 }
+    ]
+  },
+  {
+    "id": "vegetable-fried-rice",
+    "name": "Vegetable Fried Rice",
+    "category": "Lunch",
+    "prepMinutes": 10,
+    "cookMinutes": 10,
+    "servings": 2,
+    "ingredients": [
+      { "name": "cooked rice", "quantity": 2, "unit": "cups" },
+      { "name": "carrot", "quantity": 1, "unit": "pieces" },
+      { "name": "peas", "quantity": 0.5, "unit": "cups" },
+      { "name": "oil", "quantity": 1, "unit": "tbsp" },
+      { "name": "salt", "quantity": 0.5, "unit": "tsp" }
+    ],
+    "steps": [
+      { "instruction": "Wash and chop the vegetables into small pieces.", "timerSeconds": 120 },
+      { "instruction": "Heat oil and stir-fry the vegetables until tender.", "timerSeconds": 300 },
+      { "instruction": "Add the cooked rice and salt, then stir-fry until hot throughout.", "timerSeconds": 180 }
+    ]
+  },
+  {
+    "id": "grilled-cheese",
+    "name": "Grilled Cheese Sandwich",
+    "category": "Snack",
+    "prepMinutes": 5,
+    "cookMinutes": 6,
+    "servings": 1,
+    "ingredients": [
+      { "name": "bread", "quantity": 2, "unit": "slices" },
+      { "name": "cheese", "quantity": 2, "unit": "slices" },
+      { "name": "butter", "quantity": 1, "unit": "tbsp" }
+    ],
+    "steps": [
+      { "instruction": "Place the cheese between the bread slices.", "timerSeconds": 30 },
+      { "instruction": "Butter the outside of the sandwich and place it in a heated pan.", "timerSeconds": 150 },
+      { "instruction": "Flip and cook until both sides are golden and the cheese has melted.", "timerSeconds": 180 }
+    ]
+  },
+  {
+    "id": "vegetable-soup",
+    "name": "Vegetable Soup",
+    "category": "Dinner",
+    "prepMinutes": 10,
+    "cookMinutes": 25,
+    "servings": 2,
+    "ingredients": [
+      { "name": "carrot", "quantity": 1, "unit": "pieces" },
+      { "name": "potato", "quantity": 1, "unit": "pieces" },
+      { "name": "onion", "quantity": 1, "unit": "pieces" },
+      { "name": "water", "quantity": 3, "unit": "cups" },
+      { "name": "salt", "quantity": 0.5, "unit": "tsp" }
+    ],
+    "steps": [
+      { "instruction": "Wash and chop the vegetables.", "timerSeconds": 180 },
+      { "instruction": "Add vegetables and water to a pot and bring to a boil.", "timerSeconds": 300 },
+      { "instruction": "Simmer until the vegetables are tender, then season to taste.", "timerSeconds": 900 }
+    ]
+  },
+  {
+    "id": "banana-pancakes",
+    "name": "Banana Pancakes",
+    "category": "Breakfast",
+    "prepMinutes": 5,
+    "cookMinutes": 10,
+    "servings": 2,
+    "ingredients": [
+      { "name": "banana", "quantity": 2, "unit": "pieces" },
+      { "name": "egg", "quantity": 2, "unit": "pieces" },
+      { "name": "flour", "quantity": 0.5, "unit": "cups" },
+      { "name": "milk", "quantity": 0.25, "unit": "cups" },
+      { "name": "oil", "quantity": 1, "unit": "tbsp" }
+    ],
+    "steps": [
+      { "instruction": "Mash the bananas in a bowl.", "timerSeconds": 60 },
+      { "instruction": "Mix in the eggs, flour, and milk to form a batter.", "timerSeconds": 120 },
+      { "instruction": "Cook small portions in a lightly oiled pan, flipping when the edges set.", "timerSeconds": 420 }
+    ]
+  }
+]
