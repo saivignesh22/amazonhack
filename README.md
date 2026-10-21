@@ -191,8 +191,35 @@ content. No screen contains hard-coded recipe content.
 | Install and behaviour on a physical Fire TV | **Device pending** — needs a Fire TV (or Fire TV Stick) and a sideload |
 | Remote key codes on real hardware | **Device pending** — the APK forwards the Android Back button; the D-pad is handled by the WebView's key events |
 | Fire OS 5/6/7 (older API levels) | **Device pending** — built with `minSdk 21`, not yet run on an old device |
+| Open source contribution | **Submitted** — [bamlab/react-tv-space-navigation#229](https://github.com/bamlab/react-tv-space-navigation/pull/229), awaiting review |
 
 Nothing in this table is claimed beyond what has actually been run.
+
+---
+
+## Open source contribution
+
+The focus engine in `src/tv/focus/` was built for this project, but the problem it
+solves — restoring the focus when the user comes back to a screen — is not
+specific to it. It is a known pain point of spatial navigation on TV, tracked
+upstream in
+[bamlab/react-tv-space-navigation#174](https://github.com/bamlab/react-tv-space-navigation/issues/174)
+("it is not possible to select the focusable element for the 2nd time when we
+return to the previous screen") and
+[#195](https://github.com/bamlab/react-tv-space-navigation/issues/195) ("focus jumps
+after screen navigation").
+
+So the mechanism was contributed back to that library:
+
+**[PR #229 — `feat: restore the focus when a root becomes active again`](https://github.com/bamlab/react-tv-space-navigation/pull/229)**
+
+- Adds an opt-in `restoreFocus` prop to `SpatialNavigationRoot`: the root remembers
+  where the focus was when it was deactivated (by `isActive`, or by a modal
+  locking the navigation) and gives it back when it becomes active again.
+- The position of the node in the tree is used to find the element back, because
+  the node ids are generated at mount time and change on every re-render.
+- 4 new tests, two of which fail without the change.
+- `yarn test` (lint, types, core tests and example tests) passes.
 
 ---
 
