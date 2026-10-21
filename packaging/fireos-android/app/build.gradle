@@ -1,0 +1,95 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The web app lives at the repository root; its production build is copied
+// into the APK's assets so the WebView can load it offline.
+def webAppRoot = file("$rootDir/../../")
+def webDistDir = new File(webAppRoot, 'dist')
+
+tasks.register('copyWebAssets', Copy) {
+    description = 'Copies the Vite production build into the APK assets.'
+    group = 'build'
+    from(webDistDir)
+    into("$projectDir/src/main/assets/www")
+    doFirst {
+        if (!webDistDir.exists()) {
+            throw new GradleException(
+                "The web build is missing (${webDistDir}). Run 'npm run build' in the repository root first.")
+        }
+    }
+}
+
+tasks.named('preBuild') {
+    dependsOn 'copyWebAssets'
+}
+
+tasks.named('clean', Delete) {
+    delete "$projectDir/src/main/assets/www"
+}
+
+android {
+    namespace 'com.cookcue.firetv'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.cookcue.firetv'
+        minSdk 21
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    // Release builds are signed with the keystore created by
+    // create-keystore.ps1. When it is missing the release APK is built
+    // unsigned (use the debug APK in that case).
+    def keystoreFile = rootProject.file('cookcue.keystore')
+    def hasKeystore = keystoreFile.exists()
+
+    signingConfigs {
+        release {
+            if (hasKeystore) {
+                storeFile keystoreFile
+                storePassword project.findProperty('COOKCUE_STORE_PASSWORD') ?: 'cookcue2026'
+                keyAlias project.findProperty('COOKCUE_KEY_ALIAS') ?: 'cookcue'
+                keyPassword project.findProperty('COOKCUE_KEY_PASSWORD') ?: 'cookcue2026'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (hasKeystore) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.webkit:webkit:1.12.1'
+
+    // Align the Kotlin stdlib artifacts. Newer AndroidX pulls kotlin-stdlib
+    // 1.8.x while some transitive dependencies still reference the older
+    // split jdk7/jdk8 artifacts, which fails with duplicate class errors.
+    constraints {
+        implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+        implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+    }
+}

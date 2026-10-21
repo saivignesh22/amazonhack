@@ -1,0 +1,82 @@
+/* CookCue design tokens — warm, modern, kitchen-inspired.
+   Baseline viewport: 1920x1080 (1080p Fire TV). */
+
+:root {
+  /* Surfaces */
+  --bg: #14110f;
+  --bg-elev: #1c1816;
+  --surface: #241e1b;
+  --surface-2: #2e2622;
+  --surface-3: #3a302b;
+  --line: #3d322d;
+  --line-soft: #2b2421;
+
+  /* Text */
+  --text: #f6efe7;
+  --text-dim: #c9b8aa;
+  --text-mute: #96857a;
+  --text-faint: #6e6058;
+
+  /* Accents */
+  --accent: #e2703a;
+  --accent-strong: #f0834c;
+  --accent-soft: rgba(226, 112, 58, 0.16);
+  --saffron: #f2b544;
+  --saffron-soft: rgba(242, 181, 68, 0.16);
+  --sage: #7fa88b;
+  --sage-soft: rgba(127, 168, 139, 0.16);
+  --clay: #cf7359;
+  --clay-soft: rgba(207, 115, 89, 0.16);
+
+  /* Focus */
+  --focus: #f7c65a;
+  --focus-ring: 0 0 0 3px var(--focus), 0 0 0 8px rgba(247, 198, 90, 0.22),
+    0 18px 40px rgba(0, 0, 0, 0.5);
+  --focus-scale: 1.035;
+
+  /* Type scale (1080p) */
+  --fs-hero: 68px;
+  --fs-h1: 46px;
+  --fs-h2: 32px;
+  --fs-h3: 26px;
+  --fs-body: 22px;
+  --fs-meta: 18px;
+  --fs-small: 16px;
+  --fs-micro: 14px;
+  --fs-timer: 104px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* Spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+  --sp-9: 96px;
+
+  /* Shape */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-pill: 999px;
+
+  /* Layout */
+  --screen-pad-x: 96px;
+  --screen-pad-y: 56px;
+
+  --sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --serif: 'Georgia', 'Times New Roman', serif;
+
+  --shadow-card: 0 12px 34px rgba(0, 0, 0, 0.42);
+  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.5);
+
+  --dur: 140ms;
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+}

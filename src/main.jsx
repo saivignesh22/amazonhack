@@ -1,10 +1,7 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// StrictMode is intentionally left off: its double-invoked effects make the
+// focus engine restore focus twice on mount, which is confusing on a TV.
+createRoot(document.getElementById('root')).render(<App />)

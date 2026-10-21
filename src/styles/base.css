@@ -1,0 +1,105 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* The TV surface never scrolls the document itself; panels scroll internally. */
+.scroll-y {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.scroll-y::-webkit-scrollbar,
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+/* ---- Focus affordance -------------------------------------------------
+   Every focusable element carries data-focusable. The active element is
+   marked with data-focus-active by the focus engine. Both are styled so
+   focus is always visible, including on the Fire TV WebView where
+   :focus-visible heuristics are unreliable. */
+
+[data-focusable] {
+  outline: none;
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+
+[data-focusable][data-focus-active='true'] {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  box-shadow: var(--focus-ring);
+  transform: scale(var(--focus-scale));
+  z-index: 5;
+}
+
+[data-focusable]:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}

@@ -12,6 +12,17 @@ dist
 dist-ssr
 *.local
 
+# Android / Fire OS packaging
+packaging/fireos-android/.gradle/
+packaging/fireos-android/build/
+packaging/fireos-android/app/build/
+packaging/fireos-android/app/src/main/assets/www/
+packaging/fireos-android/local.properties
+packaging/fireos-android/*.keystore
+packaging/fireos-android/*.jks
+*.keystore
+*.jks
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
