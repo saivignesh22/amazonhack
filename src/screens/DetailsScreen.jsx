@@ -57,10 +57,16 @@ export default function DetailsScreen({ params, restoreFocusId }) {
 
           <div className="details__body">
             <div className="details__stats">
-              <Stat label="Time" value={`${recipe.totalMinutes} min`} />
-              <Stat label="Serves" value={recipe.servings} />
-              <Stat label="Difficulty" value={recipe.difficulty} />
-              <Stat label="Per serving" value={`${recipe.calories} kcal`} />
+              <Stat
+                label="Time"
+                value={recipe.totalMinutes ? `${recipe.totalMinutes} min` : 'Not listed'}
+              />
+              <Stat label="Serves" value={recipe.servings || 'Not listed'} />
+              <Stat label="Difficulty" value={recipe.difficulty || 'Not listed'} />
+              <Stat
+                label="Per serving"
+                value={recipe.calories ? `${recipe.calories} kcal` : 'Not listed'}
+              />
             </div>
 
             <div className="details__columns">

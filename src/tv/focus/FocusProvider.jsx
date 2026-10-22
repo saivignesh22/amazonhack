@@ -32,20 +32,6 @@ export function FocusProvider({ children }) {
     registryListenersRef.current.forEach((listener) => listener())
   }, [])
 
-  const register = useCallback(
-    (entry) => {
-      entriesRef.current.set(entry.id, entry)
-      setRegistryVersion((v) => v + 1)
-      notifyRegistry()
-      return () => {
-        entriesRef.current.delete(entry.id)
-        setRegistryVersion((v) => v + 1)
-        notifyRegistry()
-      }
-    },
-    [notifyRegistry],
-  )
-
   /** Notified whenever a focusable registers or unregisters. */
   const subscribeRegistry = useCallback((listener) => {
     registryListenersRef.current.add(listener)
@@ -85,6 +71,31 @@ export function FocusProvider({ children }) {
     return out
   }, [])
 
+  /**
+   * Register a focusable. The cleanup re-places focus when the focused element
+   * is removed from the DOM (a chip was deleted, a row was replaced by its
+   * results) so the user is never left without a focus ring. A plain
+   * re-registration of an element that is still connected is left alone.
+   */
+  const register = useCallback(
+    (entry) => {
+      entriesRef.current.set(entry.id, entry)
+      setRegistryVersion((v) => v + 1)
+      notifyRegistry()
+
+      return () => {
+        entriesRef.current.delete(entry.id)
+        if (activeIdRef.current === entry.id && !entry.el?.isConnected) {
+          const first = visibleEntries()[0]
+          if (first) setActive(first.id)
+        }
+        setRegistryVersion((v) => v + 1)
+        notifyRegistry()
+      }
+    },
+    [notifyRegistry, setActive, visibleEntries],
+  )
+
   const moveFocus = useCallback(
     (direction) => {
       const entries = visibleEntries()
@@ -112,6 +123,13 @@ export function FocusProvider({ children }) {
     const onKeyDown = (event) => {
       const action = resolveAction(event)
       if (!action) return
+
+      const active = entriesRef.current.get(activeIdRef.current)
+
+      // In a text field Left/Right belong to the caret, not to spatial
+      // navigation. Up/Down still move focus out of the field, which is the
+      // only way to leave it with a remote once the soft keyboard is closed.
+      if (active?.editable && (action === 'left' || action === 'right')) return
 
       if (action === 'left' || action === 'up' || action === 'right' || action === 'down') {
         event.preventDefault()
@@ -148,6 +166,21 @@ export function FocusProvider({ children }) {
       }
     }
   }, [activeId, registryVersion])
+
+  // Keep the engine in sync when a registered element is focused natively
+  // (mouse click or Tab). Without this the engine would still believe the
+  // previous element is active and route Select to it.
+  useEffect(() => {
+    const onFocusIn = (event) => {
+      const el = event.target
+      const id = el && typeof el.getAttribute === 'function' ? el.getAttribute('data-focus-id') : null
+      if (id && entriesRef.current.has(id) && id !== activeIdRef.current) {
+        setActive(id)
+      }
+    }
+    window.addEventListener('focusin', onFocusIn)
+    return () => window.removeEventListener('focusin', onFocusIn)
+  }, [setActive])
 
   const value = useMemo(
     () => ({

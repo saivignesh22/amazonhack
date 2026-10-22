@@ -195,6 +195,113 @@ reach a string method.
 
 ---
 
+## 11. TheMealDB publishes no difficulty, servings or nutrition
+
+The recipe source has a name, a category, a photo and a wall of instructions. It
+does not have the three facts the details screen wants most.
+
+**Impact:** inventing them would have made the demo look better and the product
+dishonest.
+
+**Workaround:** the contract marks `difficulty`, `servings` and `calories` as
+nullable, and the UI says **Not listed** instead of guessing. A 790-meal
+snapshot is committed so the lists and the app work offline; only a dish outside
+the snapshot goes to the live API (which needs no key).
+
+---
+
+## 12. Pexels blocks Node's TLS fingerprint; Wikimedia blocks the IP
+
+The image script needs 14 photos for the bundled recipes. Pexels returns 403 to
+Node's `fetch()` even with a browser user agent, while `curl` to the same URL
+works. Wikimedia image servers are blocked from this network entirely.
+
+**Impact:** the straightforward "fetch in Node" pipeline silently lost a third
+of the images.
+
+**Workaround:** Pexels requests go through `curl` (present on Windows, macOS and
+Linux); TheMealDB is happy with plain `fetch()`. TheMealDB's own dish photos
+cover the 790 catalogue meals, so the entire set is consistent and each file has
+a source and licence in `public/recipes/ATTRIBUTION.md`.
+
+---
+
+## 13. Eight hundred photos make the APK 15 MB
+
+Real dish photos are non-negotiable for the cards, but the source images are
+1024px and a naive download adds ~100 MB to the web build, which is then copied
+into the APK.
+
+**Impact:** a 15 MB APK is fine; a 100 MB one is not, and a low-RAM Fire TV
+Stick should not decode 1024px images to show 400px cards.
+
+**Workaround:** one build-time crop to 400×225 (16:9, quality 65) with Pillow —
+a build dependency only, never shipped. `src/data/recipeImages.json` records the
+size, source and licence; the manifest test checks every file exists and is 16:9.
+Cards lazy-load, so only the visible row is decoded.
+
+---
+
+## 14. The browser test remembered the previous run
+
+`npm run test:tv` reused a fixed Chrome profile, so cooking history and storage
+survived between runs. A later run started with a full history panel and failed
+checks that had passed before.
+
+**Impact:** a confusing "history starts empty" failure that looked like an app
+bug but was test state.
+
+**Workaround:** each run uses a throwaway profile
+(`cookcue-tv-test-profile-<pid>`), deleted at the start. The history checks now
+always begin from an empty device, and the persistence check is real.
+
+---
+
+## 15. A wide text field beat the button directly below it
+
+The first spatial-navigation scoring used centre-to-centre distance with an
+alignment bonus. From a quick-add chip, a full-width dish field 120px below
+scored better than the "Find recipes" button 16px below, because the wide field's
+centre was horizontally closer. Pressing Down skipped the primary action.
+
+**Impact:** the main flow was unreachable with the D-pad from several places,
+even though every element had a visible focus ring.
+
+**Workaround:** `findNextCandidate` now keeps only the nearest **band** of
+candidates (nearest gap plus a tolerance), then prefers cross-axis overlap
+inside that band. A regression test ("down prefers the control just below over a
+wide field far down the page") guards it. The layout was also simplified:
+"Find recipes" is the only action under the field, and "Clear all" sits with the
+chips.
+
+---
+
+## 16. Node refuses JSON imports that Vite accepts
+
+`node --test` imports the app modules directly. Node 24 rejects a bare
+`import manifest from './data/recipeImages.json'` with
+`ERR_IMPORT_ATTRIBUTE_MISSING`, while Vite builds the same file happily.
+
+**Workaround:** the manifest import uses `with { type: 'json' }`, which both
+Node 24 and Vite 8 accept. The image test then exercises the real
+`imageFor()` / `creditFor()` seam instead of a copy of the manifest logic.
+
+---
+
+## 17. PowerShell reports npm's stderr as a failed command
+
+`npm.cmd run build` prints Vite's chunk-size warning to stderr. PowerShell turns
+that into a `NativeCommandError` and a displayed `Exited with code 1`, even
+though the build exited 0.
+
+**Impact:** several minutes lost re-running successful builds.
+
+**Workaround:** check `$LASTEXITCODE` (and run the node script directly when in
+doubt) instead of trusting the red text. `npm run test:tv` exiting 0 and printing
+`73/73 checks passed` is the source of truth.
+
+---
+
 ## Summary
 
 | # | Friction | Fix | Still blocking? |
@@ -209,3 +316,10 @@ reach a string method.
 | 8 | Fire OS has no Play Services | No Play Services dependencies | No |
 | 9 | PowerShell blocks `npm.ps1` | Use `npm.cmd` | No |
 | 10 | PowerShell array flattening | Targeted edits + assertions | No |
+| 11 | TheMealDB has no difficulty/servings | Nullable fields + "Not listed" | No |
+| 12 | Pexels 403s Node, Wikimedia blocks the IP | curl for Pexels, TheMealDB photos for the rest | No |
+| 13 | 800 photos would bloat the APK | 400×225 build-time crops + lazy loading | No |
+| 14 | Smoke test remembered its history | Throwaway profile per run | No |
+| 15 | Wide field stole Down from the button below | Nearest-band spatial heuristic + test | No |
+| 16 | Node rejects bare JSON imports | `with { type: 'json' }` | No |
+| 17 | PowerShell calls npm's stderr a failure | Check `$LASTEXITCODE` | No |

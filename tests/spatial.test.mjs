@@ -65,3 +65,32 @@ test('a row of tiles is walked left to right', () => {
   assert.equal(findNextCandidate(active.rect, rest, 'right').id, 'tile-2')
   assert.equal(findNextCandidate(active.rect, rest, 'left').id, 'tile-0')
 })
+
+test('down prefers the control just below over a wide field far down the page', () => {
+  // The regression this guards: a full-width text field further down the page
+  // used to win on centre distance over the button directly underneath.
+  const field = rect(100, 0, 1100, 64)
+  const button = rect(180, 0, 220, 56)
+  const farField = rect(900, 0, 1100, 64)
+  const entries = [item('button', button), item('far-field', farField)]
+
+  assert.equal(findNextCandidate(field, entries, 'down').id, 'button')
+})
+
+test('inside the nearest band the horizontally aligned item wins', () => {
+  const active = rect(100, 500)
+  const aligned = rect(180, 520)
+  const offset = rect(180, 1000)
+  const entries = [item('aligned', aligned), item('offset', offset)]
+
+  assert.equal(findNextCandidate(active, entries, 'down').id, 'aligned')
+})
+
+test('a wrapped row is walked line by line', () => {
+  const firstLine = [0, 1, 2].map((i) => item(`a-${i}`, rect(100, 100 + i * 220)))
+  const secondLine = [0, 1, 2].map((i) => item(`b-${i}`, rect(160, 100 + i * 220)))
+  const entries = [...firstLine, ...secondLine]
+
+  assert.equal(findNextCandidate(firstLine[0].rect, entries, 'down').id, 'b-0')
+  assert.equal(findNextCandidate(firstLine[2].rect, entries, 'down').id, 'b-2')
+})

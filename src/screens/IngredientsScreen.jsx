@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from '../app/routerContext.js'
+import { useKitchen } from '../app/useKitchen.js'
 import { useServices } from '../services/ServicesContext.js'
 import { FocusScope } from '../tv/focus/FocusScope.jsx'
 import { AppHeader } from '../components/AppHeader.jsx'
@@ -9,6 +10,7 @@ import { IngredientRow } from '../components/IngredientRow.jsx'
 export default function IngredientsScreen({ params, restoreFocusId }) {
   const { recipes: recipeService } = useServices()
   const { navigate } = useRouter()
+  const { ingredients: kitchenIngredients } = useKitchen()
   const [recipe, setRecipe] = useState(null)
   const [report, setReport] = useState(null)
   const [overrides, setOverrides] = useState({})
@@ -17,7 +19,7 @@ export default function IngredientsScreen({ params, restoreFocusId }) {
     let alive = true
     Promise.all([
       recipeService.getRecipe(params.id),
-      recipeService.matchIngredients(params.id),
+      recipeService.matchIngredients(params.id, kitchenIngredients),
     ]).then(([loadedRecipe, loadedReport]) => {
       if (!alive) return
       setRecipe(loadedRecipe)
@@ -26,7 +28,7 @@ export default function IngredientsScreen({ params, restoreFocusId }) {
     return () => {
       alive = false
     }
-  }, [recipeService, params.id])
+  }, [recipeService, params.id, kitchenIngredients])
 
   const items = useMemo(() => {
     if (!report) return []

@@ -90,14 +90,46 @@ Tick each row when it passes on the device.
 - [ ] Nothing is cut off at the edges — check the long recipe title
       *Sheet-Pan Lemon Chicken* and the ingredient list.
 
-### Home
+### Home — ingredient discovery
 
-- [ ] Three rows of recipes render: recommended, quick, "uses what you have".
-- [ ] The first tile has a visible focus ring.
-- [ ] D-pad left/right moves along the row.
-- [ ] D-pad up/down moves between rows.
-- [ ] The focused tile scrolls into view when it is at the edge of a row.
-- [ ] The focus ring is clearly visible against every tile background.
+- [ ] The page opens with **What's in your kitchen today?** and the ingredient field focused.
+- [ ] The placeholder reads **Eggs, tomatoes, onions, rice...**.
+- [ ] Pressing Select on the empty field raises the Fire TV soft keyboard (this is the biggest on-device unknown — see risks).
+- [ ] Typing `eggs, tomatoes, rice` and pressing Select adds three chips.
+- [ ] A duplicate (`Eggs` again) does not add a second chip.
+- [ ] D-pad Left/Right moves the caret inside the field and does **not** leave it; Up/Down leave the field.
+- [ ] Backspace edits the text and never navigates back.
+- [ ] Select on a chip removes it and focus stays on the field (never disappears).
+- [ ] The **Clear all** chip at the end of the row empties the kitchen.
+- [ ] The **Quick add** row adds Eggs/Tomatoes/... with no keyboard at all.
+- [ ] **Find recipes** is one Down press below the field and shows recipes using what you have.
+- [ ] Result cards show a real dish photo, title, time, and either the difficulty or "Not listed".
+- [ ] Each card shows how many ingredients you have and what is missing.
+- [ ] The result row scrolls horizontally and the focused card scrolls into view.
+- [ ] **Find recipes** is disabled with an empty kitchen, and the hint says why.
+
+### Home — particular dish
+
+- [ ] The **Have a particular recipe in mind?** field accepts a dish name.
+- [ ] After a search, **Open recipe** and **Clear search** are reachable with one Down press.
+- [ ] A real dish shows have / missing for the kitchen and any substitutions the engine supports.
+- [ ] A nonsense dish shows the "no exact match" message and a list of similar recipes.
+- [ ] The ingredient chips are still there after the dish search.
+
+### Home — cooking history
+
+- [ ] With no finished recipes, the panel says **Your cooked recipes will appear here.**
+- [ ] Finishing a recipe adds it to the panel, with a photo, title and date.
+- [ ] Cooking the same recipe again does not create a duplicate; it moves to the top.
+- [ ] Reopening the app keeps the history (localStorage survives a cold start).
+- [ ] The history row is reachable with the D-pad and **Open again** works.
+
+### Photos and assets
+
+- [ ] Every card and history thumbnail shows a real dish photo — no grey boxes, no broken-image icons.
+- [ ] Photos fill a 16:9 box without stretching (`object-fit: cover`).
+- [ ] A recipe without a shipped photo falls back to the drawn motif instead of a broken image.
+- [ ] The photos load from inside the APK (relative `./recipes/...` paths), not from the network.
 
 ### Recipe details
 
@@ -140,7 +172,10 @@ Tick each row when it passes on the device.
 - [ ] The last step's **Finish** shows the completion screen.
 - [ ] The summary shows time, steps, ingredients and difficulty.
 - [ ] **Cook it again** restarts the recipe from step 1.
-- [ ] **Back to home** returns to the home screen with focus on the first tile.
+- [ ] **Back to home** returns to the home screen with focus on the ingredient field.
+- [ ] The finished recipe now appears at the top of **Your cooking history**.
+- [ ] **Open again** from the history opens the same recipe.
+- [ ] The kitchen chips are still there after returning from cooking.
 
 ---
 
@@ -149,7 +184,12 @@ Tick each row when it passes on the device.
 | Risk | What to check |
 | --- | --- |
 | The Fire OS WebView may implement its own spatial navigation, which would fight ours. The engine calls `preventDefault()` in the capture phase to win. | Arrow keys move exactly one item per press, with no double movement. |
+| The soft keyboard is the biggest unknown: the Fire TV IME can cover the field and the buttons, and its Enter key may be handled by the WebView rather than ours. Select on the empty field is the explicit trigger. | The field stays visible while typing, Select adds the chips, and Up/Down still leave the field when the keyboard is open. |
 | The Android Back button may be delivered to the WebView instead of the Activity. The Activity intercepts it via `OnBackPressedDispatcher` and calls `window.cookcue.handleBack()`. | Back always unwinds one screen, never exits the app from a detail screen. |
+| Backspace on a remote (or a keyboard on the device) must edit text, not trigger Back. `src/app/App.jsx` ignores Backspace while an editable field has focus. | Delete a character in the ingredient field without leaving the screen. |
+| The APK now carries ~800 photos (~15 MB of assets). `WebViewAssetLoader` decodes them from inside the APK; a low-RAM stick may struggle if every image loads at once. Cards are lazy-loaded. | Scrolling a result row stays smooth, images appear as they enter the viewport, and the app does not reload or be killed on a Fire TV Stick Lite. |
+| History is kept in `localStorage`, which Fire OS may clear on app data reset. | Finish a recipe, force-stop the app, relaunch: the entry is still there. |
+| A dish outside the committed snapshot uses the live TheMealDB search (no key). | With the network off, the search still shows the offline snapshot results or a friendly "not found"; it never hangs. |
 | Audio may be blocked until the first user interaction. The beep is a bonus; the visual alert is the real signal. | The alert overlay appears even with no sound. |
 | Older Fire OS (5/6) ships an older WebView. | `minSdk 21` is set, but check the layout on an older device if one is available. |
 
