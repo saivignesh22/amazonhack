@@ -517,6 +517,24 @@ async function runChecks(ws) {
     images.every((image) => Boolean(image.alt) && image.alt.length > 3),
     images[0]?.alt,
   )
+
+  const timeLabels = await evaluate(
+    ws,
+    `Array.from(document.querySelectorAll('.results .tile__meta-item'))
+       .map((el) => el.textContent.trim())
+       .filter((text) => text.endsWith(' min'))`,
+  )
+  check(
+    'derived times are marked as estimates',
+    timeLabels.length > 0 && timeLabels.every((label) => label.startsWith('~')),
+    timeLabels.join(', '),
+  )
+  check(
+    'no card claims an implausible total time',
+    timeLabels.every((label) => Number(label.replace('~', '').split(' ')[0]) >= 10),
+    timeLabels.join(', '),
+  )
+
   await evaluate(
     ws,
     `document.querySelector('.results .tile--card')?.scrollIntoView({ block: 'center' })`,
@@ -591,6 +609,8 @@ async function runChecks(ws) {
   id = await activeId(ws)
   check('details focuses the primary action', Boolean(id?.startsWith('details-start-')), id)
   const recipeId = id ? id.slice('details-start-'.length) : ''
+  await sleep(250)
+  await capture(ws, '08-details')
 
   const detailsText = await evaluate(ws, `document.querySelector('.details')?.innerText || ''`)
   check('details never show undefined', !detailsText.includes('undefined'))
@@ -763,6 +783,17 @@ async function runChecks(ws) {
     'the empty state still offers alternative recipes',
     alternativeCount > 0,
     `${alternativeCount} alternatives`,
+  )
+  const alternativeTimes = await evaluate(
+    ws,
+    `Array.from(document.querySelectorAll('.results__empty .tile__meta-item'))
+       .map((el) => el.textContent.trim())
+       .filter((text) => text.endsWith(' min'))`,
+  )
+  check(
+    'alternatives never claim an implausible time',
+    alternativeTimes.every((label) => Number(label.replace('~', '').split(' ')[0]) >= 10),
+    alternativeTimes.join(', ') || 'no timed alternatives',
   )
   await evaluate(ws, `document.querySelector('.results')?.scrollIntoView({ block: 'center' })`)
   await sleep(300)

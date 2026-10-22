@@ -104,9 +104,11 @@ confirmation instead of a daily retype.
 
 ### 3. A second source for the facts TheMealDB does not publish
 
-TheMealDB has no difficulty, servings or nutrition, and the UI says **Not
-listed** rather than inventing them. That honesty is right, but a second source
-for those three fields would make the ranking and the details screen stronger.
+TheMealDB has no difficulty, servings, nutrition or total time, and the UI says
+**Not listed** rather than inventing them. A time is only shown when the step
+timers add up to a plausible total, and it is marked **~** so it is never
+mistaken for a published fact. That honesty is right, but a second source for
+those four fields would make the ranking and the details screen stronger.
 
 ### 4. Voice control
 

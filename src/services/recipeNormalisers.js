@@ -25,6 +25,18 @@ const GRADIENTS = [
 const MOTIFS = ['round', 'wide', 'square']
 
 const MAX_STEPS = 12
+
+/**
+ * TheMealDB does not publish a total time, so the only time data is the
+ * durations mentioned inside steps. Their sum is a lower bound, not a total:
+ * a dish with one "stir for 1 minute" would otherwise claim "1 min".
+ *
+ * A total is only shown when the sum is both at least ten minutes and at least
+ * two minutes per step - a twelve-step dish cannot honestly claim ten minutes.
+ * Otherwise the recipe shows "Not listed" (or its step count) instead.
+ */
+const MIN_ESTIMATED_MINUTES = 10
+const MIN_MINUTES_PER_STEP = 2
 const STEP_MARKER = /^step\s*\d+\s*[:.)-]?\s*$/i
 const STEP_PREFIX = /^step\s*\d+\s*[:.)-]\s*/i
 const TIME_PATTERN =
@@ -206,6 +218,7 @@ export function normaliseEngineRecipe(recipe, { image = null } = {}) {
     category: recipe.category || '',
     difficulty: null,
     totalMinutes: totalMinutes > 0 ? totalMinutes : null,
+    timeEstimated: false,
     servings: recipe.servings || null,
     calories: null,
     tags: [recipe.category].filter(Boolean),
@@ -230,7 +243,9 @@ export function normaliseEngineRecipe(recipe, { image = null } = {}) {
  */
 export function normaliseMeal(meal, { image = null } = {}) {
   const steps = stepsFromInstructions(meal.instructions, meal.id)
-  const timedMinutes = steps.reduce((total, step) => total + (step.minutes || 0), 0)
+  const timerMinutes = steps.reduce((total, step) => total + (step.minutes || 0), 0)
+  const plausible = Math.max(MIN_ESTIMATED_MINUTES, steps.length * MIN_MINUTES_PER_STEP)
+  const totalMinutes = timerMinutes >= plausible ? timerMinutes : null
 
   const ingredients = (meal.ingredients || []).map((item, index) => ({
     id: `${meal.id}-i${index + 1}`,
@@ -249,7 +264,10 @@ export function normaliseMeal(meal, { image = null } = {}) {
     cuisine: meal.area || meal.category || '',
     category: meal.category || '',
     difficulty: null,
-    totalMinutes: timedMinutes > 0 ? timedMinutes : null,
+    totalMinutes,
+    // Marked so the UI can render "~15 min" instead of implying TheMealDB
+    // published a total time.
+    timeEstimated: totalMinutes !== null,
     servings: null,
     calories: null,
     tags: tags.length > 0 ? tags.slice(0, 2) : [meal.category].filter(Boolean),

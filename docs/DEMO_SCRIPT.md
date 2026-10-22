@@ -44,7 +44,8 @@ can be removed, then add it again.
 
 > "These are the recipes you can actually cook now, best match first. Every card
 > has a real photo of the dish, the time, and how much of it is already in your
-> kitchen — what you have and what is missing."
+> kitchen — what you have and what is missing. A tilde before the time means it
+> is estimated from the steps, because the catalogue does not publish one."
 
 **Action:** D-pad right along the row, then Down to the dish search.
 

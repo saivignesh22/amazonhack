@@ -3,6 +3,7 @@ import { useRouter } from '../app/routerContext.js'
 import { useKitchen } from '../app/useKitchen.js'
 import { useServices } from '../services/ServicesContext.js'
 import { useFocusable } from '../tv/focus/useFocusable.js'
+import { formatRecipeTime } from '../utils/recipeTime.js'
 import { Button } from './Button.jsx'
 
 /**
@@ -160,9 +161,7 @@ function FoundPanel({ recipe, report, source, hasKitchen, onOpen, onClear }) {
         <div className="dish__panel-title">
           <h3 className="dish__name">{recipe.title}</h3>
           <p className="dish__meta">
-            {[recipe.cuisine, recipe.totalMinutes ? `${recipe.totalMinutes} min` : null]
-              .filter(Boolean)
-              .join(' · ')}
+            {[recipe.cuisine, formatRecipeTime(recipe)].filter(Boolean).join(' · ')}
             {source === 'live' ? ' · found in the live TheMealDB catalogue' : ''}
           </p>
           <span
@@ -266,9 +265,7 @@ function Suggestion({ recipe, onSelect }) {
     <button type="button" className="dish__suggestion" {...focusableProps}>
       <span className="dish__suggestion-title">{recipe.title}</span>
       <span className="dish__suggestion-meta">
-        {[recipe.cuisine, recipe.totalMinutes ? `${recipe.totalMinutes} min` : null]
-          .filter(Boolean)
-          .join(' · ')}
+        {[recipe.cuisine, formatRecipeTime(recipe)].filter(Boolean).join(' · ')}
       </span>
     </button>
   )

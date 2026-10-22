@@ -3,6 +3,7 @@ import { useRouter } from '../app/routerContext.js'
 import { useServices } from '../services/ServicesContext.js'
 import { resetCookingSession } from '../app/cookingState.js'
 import { imageFor } from '../services/recipeImages.js'
+import { formatRecipeTime } from '../utils/recipeTime.js'
 import { FocusScope } from '../tv/focus/FocusScope.jsx'
 import { AppHeader } from '../components/AppHeader.jsx'
 import { Button } from '../components/Button.jsx'
@@ -69,7 +70,7 @@ export default function CompletionScreen({ params, restoreFocusId }) {
             <div className="done__stats">
               <Stat
                 label="Time in the kitchen"
-                value={recipe.totalMinutes ? `${recipe.totalMinutes} min` : 'Not listed'}
+                value={formatRecipeTime(recipe) || 'Not listed'}
               />
               <Stat label="Steps completed" value={recipe.steps.length} />
               <Stat label="Ingredients used" value={recipe.ingredients.length} />

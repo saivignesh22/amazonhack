@@ -1,4 +1,5 @@
 import { useFocusable } from '../tv/focus/useFocusable.js'
+import { formatRecipeTime } from '../utils/recipeTime.js'
 import { TileArt } from './TileArt.jsx'
 
 /**
@@ -12,7 +13,9 @@ export function RecipeTile({ recipe, rowId = 'main', onSelect, size = 'large' })
   const { focusableProps } = useFocusable({ id: `home-tile-${rowId}-${recipe.id}`, onSelect })
 
   const meta = []
-  if (recipe.totalMinutes) meta.push(`${recipe.totalMinutes} min`)
+  const time = formatRecipeTime(recipe)
+  if (time) meta.push(time)
+  else if (recipe.steps?.length) meta.push(`${recipe.steps.length} steps`)
   if (recipe.difficulty) meta.push(recipe.difficulty)
   if (recipe.servings) meta.push(`Serves ${recipe.servings}`)
 

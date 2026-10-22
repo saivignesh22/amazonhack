@@ -34,7 +34,8 @@
  * @property {string} cuisine
  * @property {string} category
  * @property {string|null} difficulty    'Easy' | 'Medium' | 'Hard' | null
- * @property {number|null} totalMinutes
+ * @property {number|null} totalMinutes  published total, or a derived estimate when plausible
+ * @property {boolean} [timeEstimated]   true when totalMinutes is derived, not published
  * @property {number|null} servings
  * @property {number|null} calories
  * @property {string[]} tags

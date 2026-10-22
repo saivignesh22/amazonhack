@@ -104,6 +104,7 @@ Tick each row when it passes on the device.
 - [ ] The **Quick add** row adds Eggs/Tomatoes/... with no keyboard at all.
 - [ ] **Find recipes** is one Down press below the field and shows recipes using what you have.
 - [ ] Result cards show a real dish photo, title, time, and either the difficulty or "Not listed".
+- [ ] A time starting with **~** is an estimate derived from the step timers; a card without a plausible time shows its step count instead.
 - [ ] Each card shows how many ingredients you have and what is missing.
 - [ ] The result row scrolls horizontally and the focused card scrolls into view.
 - [ ] **Find recipes** is disabled with an empty kitchen, and the hint says why.
@@ -135,6 +136,7 @@ Tick each row when it passes on the device.
 
 - [ ] Select opens the recipe details.
 - [ ] Focus lands on **Start cooking**.
+- [ ] An estimated time shows **~** and the note explaining that TheMealDB does not publish a total time.
 - [ ] D-pad right moves to **Check my kitchen**, then **Back to home**.
 - [ ] The ingredient list and the plan are both readable without scrolling.
 

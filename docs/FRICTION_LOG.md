@@ -298,7 +298,30 @@ though the build exited 0.
 
 **Workaround:** check `$LASTEXITCODE` (and run the node script directly when in
 doubt) instead of trusting the red text. `npm run test:tv` exiting 0 and printing
-`73/73 checks passed` is the source of truth.
+`80/80 checks passed` is the source of truth.
+
+---
+
+## 18. A step timer is not a total cooking time
+
+TheMealDB has no total-time field. `normaliseMeal` summed the first duration
+mentioned in each step and exposed that as `totalMinutes`. For a stir-fry whose
+only timed action is "stir for 1 minute", every card and the details screen
+claimed **1 min** — and the quick row then promoted it as one of the fastest
+dishes in the catalogue.
+
+**Impact:** the app looked confidently wrong. A twelve-step dish could claim ten
+minutes, and "quick" often meant "the instructions mention the least time".
+
+**Workaround:** the sum is only exposed when it is plausible — at least ten
+minutes and at least two minutes per step — and every derived value is marked
+`timeEstimated` and rendered as `~28 min`. Cards fall back to "8 steps" and the
+details screen to "Not listed", with a note explaining where the estimate comes
+from. Unit tests cover the one-minute and twelve-step cases, and the TV test
+fails if a result claims an implausible time or an unmarked derived time.
+
+**Still open:** TheMealDB still does not publish a real total; a second source
+would give exact times.
 
 ---
 
@@ -323,3 +346,4 @@ doubt) instead of trusting the red text. `npm run test:tv` exiting 0 and printin
 | 15 | Wide field stole Down from the button below | Nearest-band spatial heuristic + test | No |
 | 16 | Node rejects bare JSON imports | `with { type: 'json' }` | No |
 | 17 | PowerShell calls npm's stderr a failure | Check `$LASTEXITCODE` | No |
+| 18 | Step timers passed off as total time | Plausibility floor + `~` estimates + fallbacks | Real total still missing |

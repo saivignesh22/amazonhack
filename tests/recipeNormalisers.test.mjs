@@ -93,6 +93,7 @@ test('normaliseMeal maps TheMealDB data and leaves missing facts null', () => {
   assert.equal(recipe.calories, null)
   assert.equal(recipe.image, null)
   assert.equal(recipe.totalMinutes, 15)
+  assert.equal(recipe.timeEstimated, true)
   assert.deepEqual(
     recipe.ingredients.map((item) => item.pantryKey),
     ['flour', 'sugar'],
@@ -102,6 +103,38 @@ test('normaliseMeal maps TheMealDB data and leaves missing facts null', () => {
   assert.ok(recipe.art.from.startsWith('#'), 'fallback art is always present')
 })
 
+test('normaliseMeal does not turn a minor step timer into a total time', () => {
+  const recipe = normaliseMeal({
+    id: '53193',
+    title: 'Drunken noodles (pad kee mao)',
+    instructions:
+      'step 1\nPrepare the noodles and mix the sauce.\nstep 2\nStir-fry the steak for 1 minute, then the broccoli for another 1-2 mins.',
+    ingredients: [],
+  })
+
+  // The only timed action is one minute of stir-frying; that is not the total.
+  assert.equal(recipe.totalMinutes, null)
+  assert.equal(recipe.timeEstimated, false)
+})
+
+test('normaliseMeal rejects a timer sum that is impossible for the step count', () => {
+  const instructions = Array.from(
+    { length: 12 },
+    (_, i) => `Step ${i + 1}\nPrepare part ${i + 1} for 1 minute.`,
+  ).join('\n')
+  const recipe = normaliseMeal({
+    id: 'twelve-steps',
+    title: 'Twelve step dish',
+    instructions,
+    ingredients: [],
+  })
+
+  // 12 minutes of timers across 12 steps is not a plausible total.
+  assert.equal(recipe.steps.length, 12)
+  assert.equal(recipe.totalMinutes, null)
+  assert.equal(recipe.timeEstimated, false)
+})
+
 test('normaliseMeal keeps a provided photo', () => {
   const recipe = normaliseMeal(
     { id: '1', title: 'Toast', instructions: 'Toast the bread.', ingredients: [] },
@@ -109,6 +142,7 @@ test('normaliseMeal keeps a provided photo', () => {
   )
   assert.equal(recipe.image, './recipes/meals/1.jpg')
   assert.equal(recipe.totalMinutes, null)
+  assert.equal(recipe.timeEstimated, false)
   assert.equal(recipe.subtitle, 'From TheMealDB')
 })
 
@@ -126,6 +160,7 @@ test('normaliseEngineRecipe maps the team engine shape', () => {
 
   assert.equal(recipe.title, 'Tomato Pasta')
   assert.equal(recipe.totalMinutes, 20)
+  assert.equal(recipe.timeEstimated, false)
   assert.equal(recipe.servings, 2)
   assert.equal(recipe.difficulty, null)
   assert.equal(recipe.ingredients[0].amount, '250 g')

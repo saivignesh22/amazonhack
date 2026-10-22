@@ -13,7 +13,7 @@ Run npm as **`npm.cmd`**, not `npm` — PowerShell's execution policy blocks
 npm.cmd run dev          # vite dev server (host:true, so a Fire TV on the LAN can reach it)
 npm.cmd run lint         # eslint .   (must stay clean)
 npm.cmd test             # node:test unit tests, tests/**/*.test.mjs
-npm.cmd run test:tv      # builds, then drives the built app in headless Chrome (73 checks)
+npm.cmd run test:tv      # builds, then drives the built app in headless Chrome (80 checks)
 npm.cmd run build        # vite build -> dist/
 npm.cmd run apk:release  # web build + signed release APK
 ```
@@ -24,8 +24,9 @@ npm.cmd run apk:release  # web build + signed release APK
   It runs in a throwaway Chrome profile, so storage (history) always starts
   empty. `TV_TEST_DEBUG=1` prints the focus path of every D-pad walk.
 - `npm test` covers the pure modules: `spatial.js`, `ingredientNames.js`,
-  `recipeNormalisers.js`, the image manifest and the history service. Screens,
-  focus, storage and the router are covered by `npm run test:tv`.
+  `recipeNormalisers.js`, `recipeTime.js`, the image manifest and the history
+  service. Screens, focus, storage and the router are covered by
+  `npm run test:tv`.
 - `npm run apk:release` needs JDK 17, `ANDROID_HOME`, and
   `packaging/fireos-android/local.properties`. Run
   `scripts/setup-toolchain.ps1` (PowerShell, `-ExecutionPolicy Bypass`) to
@@ -112,6 +113,12 @@ The default recipe source is TheMealDB: a committed 790-meal snapshot
 hard-code "Sample data" anywhere. Dish photos live in `public/recipes/` with the
 manifest in `src/data/recipeImages.json`; `src/services/recipeImages.js` is the
 only place that builds an image URL (paths are relative: `./recipes/...`).
+
+TheMealDB publishes no total time, so `normaliseMeal` derives it from the
+durations mentioned inside steps. Keep the plausibility floor (at least 10
+minutes and 2 minutes per step) and the `timeEstimated` flag: derived times must
+render through `src/utils/recipeTime.js` as `~28 min`, never as a published
+value. Without it a single "stir for 1 minute" becomes the whole dish's time.
 
 Ingredient matching is the recipe engine's (Person 2): `recipeMatching.js` is
 the only glue and calls `src/utils/ingredients.js` +

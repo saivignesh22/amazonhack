@@ -32,9 +32,10 @@ The home screen is the first screen — no account, no setup:
 - Each ingredient becomes a chip. Select a chip to remove it; **Clear all** sits
   at the end of the row.
 - **Find recipes** ranks what the catalogue can make with what you have. Every
-  card shows a real photo, the time, the difficulty when the source publishes
-  it, what you have and what is missing. Fewer than six results is explained
-  rather than hidden.
+  card shows a real photo, the time (a tilde means the source does not publish
+  one, so it is estimated from the step timers), the difficulty when the source
+  publishes it, what you have and what is missing. Fewer than six results is
+  explained rather than hidden.
 - **Have a particular recipe in mind?** searches the same catalogue by name,
   shows have / missing for that dish, offers substitutions from the recipe
   engine, and lists similar dishes when there is no exact match.
@@ -74,7 +75,7 @@ the arrow keys, Enter and Escape. On Windows PowerShell blocks `npm.ps1` — use
 npm test             # unit tests: spatial search, ingredients, normalisers,
                      # image manifest, cooking history
 npm run test:tv      # end-to-end TV test: builds, boots headless Chrome and
-                     # drives the app with the D-pad (73 checks)
+                     # drives the app with the D-pad (80 checks)
 npm run lint
 ```
 
@@ -161,6 +162,7 @@ src/
     history/      cooking history: storage adapter, service, React hook
   data/           committed snapshots and sample data
     themealdb/    catalogue of 790 TheMealDB meals (offline, no API key)
+  utils/          recipe engine ingredients/substitutions, recipe time labels
   styles/         design tokens, base, and all screen styles
   tv/             the TV layer: keys, focus engine, back handling, audio
 public/recipes/   committed dish photos (+ ATTRIBUTION.md)
@@ -213,6 +215,13 @@ recommendation lists are instant; a dish outside the snapshot is looked up
 against the live API (the search endpoint needs no key). The header shows the
 active source through `getDataSourceLabel()`, so a source is never implied.
 
+TheMealDB does not publish a total time, so the only time data is the minutes
+mentioned inside the steps. A time is shown only when that sum is plausible —
+at least ten minutes and at least two minutes per step — and it is marked with
+a leading tilde (`~28 min`); the details screen says it is an estimate. Recipes
+without a plausible sum show their step count on the card and **Not listed**
+for time, rather than claiming "1 min" for a dish that takes half an hour.
+
 Ingredient matching is not duplicated here: `src/services/recipeMatching.js`
 calls the recipe engine's `src/utils/ingredients.js` and
 `src/utils/substitutions.js` through `src/services/recipeEngineAdapter.js`. If the
@@ -240,8 +249,8 @@ content.
 
 | Area | Status |
 | --- | --- |
-| Web app end to end: ingredient entry, chips, dedupe, Clear all, quick add, recommendations, dish search (found + not found), real photos, cooking, completion, history persistence and reopen | **Verified** — 73 automated checks in `npm run test:tv` |
-| Unit tests: spatial search, ingredient names, recipe normalisers, image manifest, cooking history | **Verified** — 45 tests in `npm test` |
+| Web app end to end: ingredient entry, chips, dedupe, Clear all, quick add, recommendations, dish search (found + not found), real photos, plausible and estimated times, cooking, completion, history persistence and reopen | **Verified** — 80 automated checks in `npm run test:tv` |
+| Unit tests: spatial search, ingredient names, recipe normalisers, recipe time labels, image manifest, cooking history | **Verified** — 49 tests in `npm test` |
 | Every referenced dish photo exists, is 16:9 and carries provenance | **Verified** — manifest test in `npm test` |
 | Lint / production build | **Verified** — `npm run lint`, `npm run build` |
 | APK builds, is signed (v1 + v2), carries the web assets, declares the leanback launcher and banner | **Verified** — 16.6 MB release APK with 805 recipe assets inside; `apksigner verify` (v1 + v2) |
