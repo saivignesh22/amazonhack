@@ -3,20 +3,27 @@
  *
  * Boots the production build (vite preview), opens it in headless Chrome and
  * drives it with the DevTools Protocol exactly like a Fire TV remote would:
- * D-pad arrows, Select and Back. It verifies that
+ * D-pad arrows, Select, Back and real text input. It verifies that
  *
- *   - all five screens render,
- *   - the focus engine moves focus in every direction,
- *   - Select activates the focused item,
- *   - the timer counts down and pauses when you leave cooking mode,
- *   - Back unwinds the screen stack and restores focus,
+ *   - the ingredient discovery page renders and starts on the text field,
+ *   - typing (comma separated) adds deduped chips, D-pad removes them,
+ *     Clear all empties the kitchen and quick-add works without typing,
+ *   - "Find recipes" ranks the catalogue and every result photo loads at 16:9,
+ *   - "Have a particular recipe in mind?" finds a dish, shows have/missing and
+ *     offers alternatives when the dish does not exist,
+ *   - the kitchen list survives the dish search,
+ *   - details -> kitchen check -> cooking mode works, the timer counts down,
+ *   - finishing the flow records the recipe in "Your Cooking History",
+ *   - history survives a reload and can be opened again with the D-pad,
+ *   - Back unwinds the stack and restores focus,
  *   - nothing is written to the console.
  *
  * Usage:  npm run test:tv
+ *         TV_TEST_SHOTS=1 npm run test:tv   # also writes 1920x1080 screenshots
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
@@ -114,7 +121,10 @@ async function startPreviewServer() {
 
 async function startBrowser() {
   const chrome = findChrome()
-  const profile = path.join(os.tmpdir(), 'cookcue-tv-test-profile')
+  // A throwaway profile per run: history and any other storage always start
+  // empty, so the test is not affected by an earlier run.
+  const profile = path.join(os.tmpdir(), `cookcue-tv-test-profile-${process.pid}`)
+  rmSync(profile, { recursive: true, force: true })
   const child = spawn(
     chrome,
     [
@@ -201,8 +211,21 @@ async function evaluate(ws, expression) {
   return result.result.value
 }
 
-const KEYS = {
-  left: ['ArrowLeft', 'ArrowLeft', 37],
+const SHOTS_DIR = process.env.TV_TEST_SHOTS
+  ? path.join(os.tmpdir(), 'cookcue-shots')
+  : null
+
+/** Save a 1920x1080 screenshot when TV_TEST_SHOTS is set (visual review). */
+async function capture(ws, name) {
+  if (!SHOTS_DIR) return
+  mkdirSync(SHOTS_DIR, { recursive: true })
+  const { data } = await send(ws, 'Page.captureScreenshot', { format: 'png' })
+  const file = path.join(SHOTS_DIR, `${name}.png`)
+  writeFileSync(file, Buffer.from(data, 'base64'))
+  console.log(`  shot: ${file}`)
+}
+
+const KEYS = {  left: ['ArrowLeft', 'ArrowLeft', 37],
   up: ['ArrowUp', 'ArrowUp', 38],
   right: ['ArrowRight', 'ArrowRight', 39],
   down: ['ArrowDown', 'ArrowDown', 40],
@@ -229,25 +252,63 @@ async function press(ws, name) {
   await sleep(150)
 }
 
+/** Type into whatever element the app has focused (real key events). */
+async function typeText(ws, text) {
+  await send(ws, 'Input.insertText', { text })
+  await sleep(120)
+}
+
 async function activeId(ws) {
   return evaluate(
     ws,
     `(() => {
+      // The engine moves DOM focus to the active element, so prefer that.
+      // The attribute is the fallback while the focus effect is still running.
+      const focused = document.activeElement
+      const direct = focused && focused.getAttribute ? focused.getAttribute('data-focus-id') : null
+      if (direct) return direct
       const el = document.querySelector('[data-focus-active="true"]')
       return el ? el.getAttribute('data-focus-id') : null
     })()`,
   )
 }
 
+const DEBUG = Boolean(process.env.TV_TEST_DEBUG)
+
 /** Press a direction until the focused element matches, like a user would. */
 async function pressUntil(ws, key, matcher, max = 6) {
+  const path = []
   for (let i = 0; i < max; i += 1) {
     const id = await activeId(ws)
-    if (id && matcher(id)) return id
+    path.push(id)
+    if (id && matcher(id)) {
+      if (DEBUG) console.log(`  ${key} path: ${path.join(' > ')}`)
+      return id
+    }
     await press(ws, key)
   }
   const id = await activeId(ws)
+  path.push(id)
+  if (DEBUG) console.log(`  ${key} path (miss): ${path.join(' > ')}`)
   return id && matcher(id) ? id : null
+}
+
+async function count(ws, selector) {
+  return evaluate(ws, `document.querySelectorAll(${JSON.stringify(selector)}).length`)
+}
+
+async function text(ws, selector) {
+  return evaluate(ws, `document.querySelector(${JSON.stringify(selector)})?.innerText ?? null`)
+}
+
+async function waitFor(ws, expression, timeout = 6000) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    const value = await evaluate(ws, expression)
+    if (value) return value
+    await sleep(150)
+  }
+  return null
 }
 
 const results = []
@@ -267,6 +328,8 @@ const screenInfo = `(() => ({
   focusActive: document.querySelectorAll('[data-focus-active="true"]').length,
 }))()`
 
+const chipLabels = `Array.from(document.querySelectorAll('.chip:not(.chip--clear) .chip__label')).map(n => n.innerText)`
+
 // --------------------------------------------------------------------------
 // the test
 // --------------------------------------------------------------------------
@@ -276,153 +339,468 @@ async function runChecks(ws) {
   await send(ws, 'Log.enable')
   await send(ws, 'Page.enable')
   await send(ws, 'Page.navigate', { url: APP_URL })
-  await sleep(2500)
 
-  // ---- home -----------------------------------------------------------
+  const booted = await waitFor(ws, `document.querySelector('.hero__title')?.innerText`, 15000)
+  check('home screen renders the ingredient discovery page', booted === "What's in your kitchen today?", booted)
+
+  // ---------------------------------------------------------------- home --
+  await waitFor(ws, `document.querySelectorAll('[data-focus-active="true"]').length === 1`, 4000)
   let screen = await evaluate(ws, screenInfo)
-  check('home screen renders', screen.title === 'What are we cooking?', screen.title)
-  check('home has focusable items', screen.focusables > 5, `${screen.focusables} focusables`)
+  check('home has focusable items', screen.focusables > 15, `${screen.focusables} focusables`)
   check('exactly one focused element', screen.focusActive === 1, `${screen.focusActive}`)
 
-  const tiles = await evaluate(
-    ws,
-    `Array.from(document.querySelectorAll('.tile')).map(t => ({
-       id: t.getAttribute('data-focus-id'),
-       title: t.querySelector('.tile__title').innerText,
-     }))`,
-  )
-  const recipeTitle = tiles[0].title
-  // focus ids look like home-tile-<rowId>-<recipeId>
-  const recipeId = tiles[0].id.split('-').slice(3).join('-')
-
   let id = await activeId(ws)
-  check('focus starts on the first tile', id === tiles[0].id, `${id} vs ${tiles[0].id}`)
+  check('focus starts on the ingredient field', id === 'home-ingredient-input', id)
 
-  await press(ws, 'right')
-  id = await activeId(ws)
-  check('ArrowRight moves focus to the next tile', id === tiles[1].id, `${id} vs ${tiles[1].id}`)
+  const historyEmpty = await text(ws, '.history__empty')
+  check(
+    'history starts with its empty state',
+    historyEmpty === 'Your cooked recipes will appear here.',
+    historyEmpty,
+  )
+
+  check('the kitchen starts empty', (await count(ws, '.chip')) === 0)
+  check('the starter hint is visible', (await text(ws, '.kitchen__empty'))?.includes('No ingredients yet'))
+  await capture(ws, '01-home-empty')
+
+  // ---- typing, chips, dedupe -------------------------------------------
+  await typeText(ws, 'Eggs, tomatoes, eggs, flour, sugar')
+  await press(ws, 'enter')
+  await sleep(250)
+
+  let chips = await evaluate(ws, chipLabels)
+  check('comma separated input becomes chips', chips.length === 4, chips.join(', '))
+  check(
+    'duplicate ingredients are dropped',
+    chips.filter((chip) => /^eggs?$/i.test(chip)).length === 1,
+    chips.join(', '),
+  )
 
   await press(ws, 'down')
   id = await activeId(ws)
+  check('ArrowDown leaves the text field for the primary action', id === 'home-find-recipes', id)
+
+  id = await pressUntil(ws, 'down', (value) => value.startsWith('home-chip-'), 3)
+  check('chips are reachable with the D-pad', Boolean(id?.startsWith('home-chip-')), id)
+
+  id = await pressUntil(ws, 'right', (value) => value === 'home-chip-sugar', 6)
+  check('chips are walked left to right', id === 'home-chip-sugar', id)
+
+  await press(ws, 'enter')
+  await sleep(250)
+  chips = await evaluate(ws, chipLabels)
   check(
-    'ArrowDown moves focus into the row below',
-    id !== tiles[1].id && id?.startsWith('home-tile-'),
-    id,
+    'Select removes a chip',
+    chips.length === 3 && !chips.some((chip) => chip.toLowerCase() === 'sugar'),
+    chips.join(', '),
   )
 
-  await press(ws, 'up')
+  // Focus falls back to the field after a chip disappears.
   id = await activeId(ws)
-  check('ArrowUp returns to the row above', id?.startsWith('home-tile-'), id)
+  check('focus is not lost after removing a chip', Boolean(id), id)
 
-  await press(ws, 'left')
-  id = await activeId(ws)
-  check('ArrowLeft moves focus to the previous tile', id === tiles[0].id, id)
-
-  // ---- details --------------------------------------------------------
+  // ---- Clear all -------------------------------------------------------
+  await typeText(ws, 'sugar')
   await press(ws, 'enter')
-  await sleep(450)
+  await sleep(200)
+  chips = await evaluate(ws, chipLabels)
+  check('adding after removing restores the chip', chips.length === 4, chips.join(', '))
+
+  id = await pressUntil(ws, 'down', (value) => value === 'home-find-recipes', 3)
+  check('Find recipes is one press below the field', id === 'home-find-recipes', id)
+
+  id = await pressUntil(ws, 'down', (value) => value.startsWith('home-chip-'), 3)
+  id = await pressUntil(ws, 'right', (value) => value === 'home-ingredient-clear', 8)
+  check('Clear all is reachable with the D-pad', id === 'home-ingredient-clear', id)
+
+  await press(ws, 'enter')
+  await sleep(250)
+  check('Clear all empties the kitchen', (await count(ws, '.chip')) === 0)
+
+  // ---- quick add -------------------------------------------------------
+  id = await pressUntil(ws, 'down', (value) => value.startsWith('home-quick-'), 8)
+  check('quick add is reachable with the D-pad', Boolean(id?.startsWith('home-quick-')), id)
+
+  await press(ws, 'enter')
+  await sleep(200)
+  chips = await evaluate(ws, chipLabels)
+  check('quick add works without typing', chips.length === 1, chips.join(', '))
+
+  // Back to a useful pantry for the matching checks.
+  id = await pressUntil(ws, 'up', (value) => value === 'home-ingredient-input', 8)
+  await typeText(ws, 'tomatoes, flour, sugar')
+  await press(ws, 'enter')
+  await sleep(250)
+  chips = await evaluate(ws, chipLabels)
+  check('multiple ingredients can be added again', chips.length === 4, chips.join(', '))
+  await capture(ws, '02-kitchen')
+
+  // ---- recommendations -------------------------------------------------
+  id = await pressUntil(ws, 'down', (value) => value === 'home-find-recipes', 12)
+  check('Find recipes is reachable with the D-pad', id === 'home-find-recipes', id)
+
+  await press(ws, 'enter')
+  const cardsLoaded = await waitFor(ws, `document.querySelectorAll('.tile--card').length > 0`)
+  check('Find recipes lists recipes you can make', Boolean(cardsLoaded))
+
+  const cards = await evaluate(
+    ws,
+    `Array.from(document.querySelectorAll('.tile--card')).map(card => ({
+       title: card.querySelector('.tile__title')?.innerText,
+       badge: card.querySelector('.match-badge')?.innerText,
+       kitchen: card.querySelector('.tile__kitchen-count')?.innerText,
+       missing: card.querySelector('.tile__missing')?.innerText || null,
+       cta: card.querySelector('.tile__cta')?.innerText,
+     }))`,
+  )
+  check('results are capped at 10', cards.length > 0 && cards.length <= 10, `${cards.length} cards`)
+  check(
+    'every result shows have/missing counts and a view action',
+    cards.every((card) => /\d+ of \d+/.test(card.kitchen || '') && /View recipe/i.test(card.cta || '')),
+    JSON.stringify(cards[0] || null),
+  )
+  check(
+    'results explain the missing ingredients',
+    cards.some((card) => Boolean(card.missing)),
+    cards[0]?.missing || '',
+  )
+
+  // Images: scroll each card in (they are lazy), then check they decoded at 16:9.
+  await evaluate(
+    ws,
+    `(async () => {
+       for (const img of document.querySelectorAll('.results .tile__img')) {
+         img.scrollIntoView({ block: 'nearest', inline: 'center' })
+         await new Promise((resolve) => setTimeout(resolve, 120))
+       }
+       return true
+     })()`,
+  )
+  await sleep(1200)
+  const images = await evaluate(
+    ws,
+    `Array.from(document.querySelectorAll('.results .tile__img')).map(img => {
+       const box = img.getBoundingClientRect()
+       return {
+         ok: img.complete && img.naturalWidth > 0,
+         ratio: img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0,
+         boxRatio: box.height ? box.width / box.height : 0,
+         width: Math.round(box.width),
+         height: Math.round(box.height),
+         alt: img.getAttribute('alt'),
+       }
+     })`,
+  )
+  check('result cards show real photos', images.length > 0, `${images.length} images`)
+  check(
+    'every result photo loaded',
+    images.every((image) => image.ok),
+    images.map((image) => image.ok).join(','),
+  )
+  check(
+    'photos are 16:9',
+    images.every((image) => Math.abs(image.ratio - 16 / 9) < 0.02),
+    images.map((image) => image.ratio.toFixed(2)).join(','),
+  )
+  check(
+    'photo slots are 16:9 (rendered)',
+    images.every((image) => Math.abs(image.boxRatio - 16 / 9) < 0.02),
+    images.map((image) => `${image.width}x${image.height}`).join(','),
+  )
+  check(
+    'photos are card sized, not thumbnails',
+    images.every((image) => image.width >= 280),
+    images.map((image) => image.width).join(','),
+  )
+  check(
+    'photos have alt text',
+    images.every((image) => Boolean(image.alt) && image.alt.length > 3),
+    images[0]?.alt,
+  )
+
+  const timeLabels = await evaluate(
+    ws,
+    `Array.from(document.querySelectorAll('.results .tile__meta-item'))
+       .map((el) => el.textContent.trim())
+       .filter((text) => text.endsWith(' min'))`,
+  )
+  check(
+    'derived times are marked as estimates',
+    timeLabels.length > 0 && timeLabels.every((label) => label.startsWith('~')),
+    timeLabels.join(', '),
+  )
+  check(
+    'no card claims an implausible total time',
+    timeLabels.every((label) => Number(label.replace('~', '').split(' ')[0]) >= 10),
+    timeLabels.join(', '),
+  )
+
+  await evaluate(
+    ws,
+    `document.querySelector('.results .tile--card')?.scrollIntoView({ block: 'center' })`,
+  )
+  await sleep(400)
+  await capture(ws, '03-results')
+
+  // ---- a dish that does not exist --------------------------------------
+  id = await pressUntil(ws, 'down', (value) => value === 'home-dish-input', 25)
+  check('the dish search field is reachable', id === 'home-dish-input', id)
+
+  await typeText(ws, 'Zanzibar Moon Pie')
+  await press(ws, 'enter')
+  const missingDish = await waitFor(ws, `document.querySelectorAll('.dish__suggestion').length > 0`)
+  check('an unknown dish offers alternatives instead of inventing one', Boolean(missingDish))
+  const missingCopy = await text(ws, '.dish__panel .dish__note')
+  check(
+    'the unknown dish is explained',
+    Boolean(missingCopy && /couldn.t find/i.test(missingCopy)),
+    missingCopy,
+  )
+
+  id = await pressUntil(ws, 'down', (value) => value === 'home-dish-clear-none', 8)
+  check('the unknown dish can be dismissed', id === 'home-dish-clear-none', id)
+  await press(ws, 'enter')
+  await sleep(250)
+
+  // ---- a dish that exists ----------------------------------------------
+  id = await pressUntil(ws, 'down', (value) => value === 'home-dish-input', 25)
+  check('the dish field keeps focus after clearing', id === 'home-dish-input', id)
+
+  const DISH = 'Apple & Blackberry Crumble'
+  await typeText(ws, DISH)
+  await press(ws, 'enter')
+  const dishName = await waitFor(ws, `document.querySelector('.dish__name')?.innerText`)
+  check('the requested dish is found', dishName === DISH, dishName)
+
+  const dishReport = await evaluate(
+    ws,
+    `({
+       have: document.querySelectorAll('.dish__item--have').length,
+       missing: document.querySelectorAll('.dish__item--missing').length,
+       badge: document.querySelector('.dish__panel .badge')?.innerText,
+     })`,
+  )
+  check(
+    'the dish shows what the user has and what is missing',
+    dishReport.have > 0 && dishReport.missing > 0,
+    JSON.stringify(dishReport),
+  )
+  check(
+    'the dish compares against the kitchen',
+    /in your kitchen/.test(dishReport.badge || ''),
+    dishReport.badge,
+  )
+
+  chips = await evaluate(ws, chipLabels)
+  check('the ingredient list survives the dish search', chips.length === 4, chips.join(', '))
+  await evaluate(ws, `document.querySelector('.dish__panel')?.scrollIntoView({ block: 'start' })`)
+  await sleep(300)
+  await capture(ws, '04-dish-found')
+
+  // ---- details ---------------------------------------------------------
+  id = await pressUntil(ws, 'down', (value) => value === 'home-dish-open', 8)
+  check('Open recipe is reachable', id === 'home-dish-open', id)
+
+  await press(ws, 'enter')
+  await sleep(500)
   screen = await evaluate(ws, screenInfo)
-  check('Select opens the recipe details', screen.title === recipeTitle, `${screen.title} vs ${recipeTitle}`)
+  check('Open recipe shows the dish details', screen.title === DISH, screen.title)
 
   id = await activeId(ws)
-  check('details focuses the primary action', id === `details-start-${recipeId}`, id)
+  check('details focuses the primary action', Boolean(id?.startsWith('details-start-')), id)
+  const recipeId = id ? id.slice('details-start-'.length) : ''
+  await sleep(250)
+  await capture(ws, '08-details')
+
+  const detailsText = await evaluate(ws, `document.querySelector('.details')?.innerText || ''`)
+  check('details never show undefined', !detailsText.includes('undefined'))
 
   await press(ws, 'right')
   id = await activeId(ws)
-  check('ArrowRight moves between detail buttons', id === `details-check-${recipeId}`, id)
+  check('ArrowRight moves between detail actions', id === `details-check-${recipeId}`, id)
 
+  // ---- kitchen check ---------------------------------------------------
   await press(ws, 'enter')
   await sleep(450)
   screen = await evaluate(ws, screenInfo)
-  check('Select opens the ingredient check', screen.title === 'What do you have?', screen.title)
+  check('Select opens the kitchen check', screen.title === 'What do you have?', screen.title)
 
-  // ---- ingredients ----------------------------------------------------
-  const before = await evaluate(ws, `document.querySelectorAll('.ing-row--missing').length`)
+  const missingBefore = await count(ws, '.ing-row--missing')
   id = await activeId(ws)
-  check('ingredient screen focuses an ingredient row', id?.startsWith(`ing-${recipeId}-`), id)
+  check('the kitchen check focuses an ingredient', Boolean(id?.startsWith(`ing-${recipeId}-`)), id)
+
+  const rowState = `(() => {
+    const row = document.querySelector('.ing-row[data-focus-active="true"]')
+    return row ? { missing: row.classList.contains('ing-row--missing'),
+                   badge: row.querySelector('.badge')?.innerText || null } : null
+  })()`
+  const beforeRow = await evaluate(ws, rowState)
 
   await press(ws, 'enter')
   await sleep(350)
-  const after = await evaluate(ws, `document.querySelectorAll('.ing-row--missing').length`)
-  check('Select toggles an ingredient to "I have it"', after === before - 1, `${before} -> ${after}`)
+  const missingAfter = await count(ws, '.ing-row--missing')
 
-  const badge = await evaluate(
-    ws,
-    `document.querySelector('.ing-row[data-focus-active="true"] .badge')?.innerText`,
+  check(
+    'Select toggles an ingredient',
+    beforeRow && missingAfter === missingBefore + (beforeRow.missing ? -1 : 1),
+    `${missingBefore} -> ${missingAfter}`,
   )
-  check('the toggled row shows the new state', badge === 'In your kitchen', badge)
 
-  // ---- cooking mode ---------------------------------------------------
-  id = await pressUntil(ws, 'right', (v) => v === `ing-start-${recipeId}`)
+  const afterRow = await evaluate(ws, rowState)
+  check(
+    'the toggled row shows the new state',
+    Boolean(afterRow) && afterRow.badge !== beforeRow.badge,
+    `${beforeRow?.badge} -> ${afterRow?.badge}`,
+  )
+
+  // ---- cooking mode ----------------------------------------------------
+  id = await pressUntil(ws, 'right', (value) => value === `ing-start-${recipeId}`)
   check('the start button is reachable with the D-pad', id === `ing-start-${recipeId}`, id)
 
   await press(ws, 'enter')
-  await sleep(500)
-  screen = await evaluate(ws, screenInfo)
-  check('Start cooking opens cooking mode', screen.title === 'Boil the pasta', screen.title)
+  await sleep(600)
+  const counter = await text(ws, '.cooking__counter')
+  check('Start cooking opens cooking mode', /step 1 of \d+/i.test(counter || ''), counter)
 
-  const timerA = await evaluate(ws, `document.querySelector('.timer__digits')?.innerText`)
+  const cookingTitle = await text(ws, '.pill--ember')
+  check('cooking mode keeps the recipe name', cookingTitle === DISH, cookingTitle)
+
+  const timerA = await text(ws, '.timer__digits')
   await sleep(2200)
-  const timerB = await evaluate(ws, `document.querySelector('.timer__digits')?.innerText`)
-  check('timer counts down', /^\d{2}:\d{2}$/.test(timerA || '') && timerA !== timerB, `${timerA} -> ${timerB}`)
+  const timerB = await text(ws, '.timer__digits')
+  check(
+    'the step timer counts down',
+    /^\d{2}:\d{2}$/.test(timerA || '') && timerA !== timerB,
+    `${timerA} -> ${timerB}`,
+  )
 
-  const timerLabel = await evaluate(ws, `document.querySelector('.timer__label')?.innerText`)
-  check('timer is running', /running/i.test(timerLabel || ''), timerLabel)
+  const timerLabel = await text(ws, '.timer__label')
+  check('the timer is running', /running/i.test(timerLabel || ''), timerLabel)
+  await capture(ws, '05-cooking')
 
-  id = await pressUntil(ws, 'right', (v) => v === `cook-next-${recipeId}`)
+  const totalSteps = Number((counter || '').match(/of (\d+)/i)?.[1] || 0)
+  check('the recipe has real steps', totalSteps >= 2, `${totalSteps} steps`)
+
+  id = await pressUntil(ws, 'right', (value) => value === `cook-next-${recipeId}`)
   check('the next button is reachable with the D-pad', id === `cook-next-${recipeId}`, id)
 
+  // Walk the remaining steps; the button keeps focus between steps.
+  for (let step = 1; step < totalSteps; step += 1) {
+    await press(ws, 'enter')
+    await sleep(450)
+  }
+  const lastCounter = await text(ws, '.cooking__counter')
+  check('the last step is reached', new RegExp(`step ${totalSteps} of ${totalSteps}`, 'i').test(lastCounter || ''), lastCounter)
+
   await press(ws, 'enter')
-  await sleep(450)
+  await sleep(600)
   screen = await evaluate(ws, screenInfo)
-  check('Next step advances the session', screen.title === 'Burst the tomatoes', screen.title)
+  check('Finish opens the completion screen', screen.title === 'Dinner is ready', screen.title)
 
-  const stepLabel = await evaluate(ws, `document.querySelector('.cooking__counter')?.innerText`)
-  check('step counter updates', /step 2 of 4/i.test(stepLabel || ''), stepLabel)
+  const doneSubtitle = await text(ws, '.done__subtitle')
+  check('the completion screen names the dish', (doneSubtitle || '').includes(DISH), doneSubtitle)
 
-  const progressWidth = await evaluate(ws, `document.querySelector('.cooking__bar-fill')?.style.width`)
-  check('progress bar reflects the step', progressWidth === '50%', progressWidth)
+  const stored = await evaluate(
+    ws,
+    `(() => {
+       try { return JSON.parse(localStorage.getItem('cookcue.history.v1') || '[]') } catch { return [] }
+     })()`,
+  )
+  check(
+    'finishing the flow records the recipe in history',
+    Array.isArray(stored) && stored.length === 1 && stored[0].id === recipeId,
+    JSON.stringify(stored),
+  )
 
-  // ---- Back unwinds the stack -----------------------------------------
+  // ---- history on the home screen -------------------------------------
+  await press(ws, 'enter')
+  await sleep(600)
+  screen = await evaluate(ws, screenInfo)
+  check('Back to home returns to the discovery page', screen.title === "What's in your kitchen today?", screen.title)
+
+  const historyCard = await text(ws, '.history-card__title')
+  check('the cooked recipe appears in history', historyCard === DISH, historyCard)
+
+  const historyId = await evaluate(
+    ws,
+    `document.querySelector('.history-card')?.getAttribute('data-focus-id') || null`,
+  )
+  check('the history entry is focusable', Boolean(historyId?.startsWith('home-history-')), historyId)
+
+  // ---- persistence ----------------------------------------------------
+  await send(ws, 'Page.reload')
+  const reloaded = await waitFor(ws, `document.querySelector('.hero__title')?.innerText`, 15000)
+  check('the app reloads cleanly', reloaded === "What's in your kitchen today?", reloaded)
+
+  const historyAfterReload = await text(ws, '.history-card__title')
+  check('history survives a reload', historyAfterReload === DISH, historyAfterReload)
+  check('the kitchen does not persist between launches', (await count(ws, '.chip')) === 0)
+  await evaluate(ws, `document.querySelector('.history')?.scrollIntoView({ block: 'center' })`)
+  await sleep(300)
+  await capture(ws, '06-history')
+
+  // ---- open again from history ----------------------------------------
+  id = await pressUntil(ws, 'down', (value) => value.startsWith('home-history-'), 40)
+  check('the history entry is reachable with the D-pad', Boolean(id?.startsWith('home-history-')), id)
+
+  await press(ws, 'enter')
+  await sleep(500)
+  screen = await evaluate(ws, screenInfo)
+  check('Select on a history entry opens the recipe again', screen.title === DISH, screen.title)
+
   await press(ws, 'back')
   await sleep(500)
   screen = await evaluate(ws, screenInfo)
-  check('Back returns to the ingredient screen', screen.title === 'What do you have?', screen.title)
-
-  await press(ws, 'back')
-  await sleep(450)
-  screen = await evaluate(ws, screenInfo)
-  check('Back returns to the details screen', screen.title === recipeTitle, screen.title)
-
-  await press(ws, 'back')
-  await sleep(450)
-  screen = await evaluate(ws, screenInfo)
-  check('Back returns to home', screen.title === 'What are we cooking?', screen.title)
+  check('Back returns to history', screen.title === "What's in your kitchen today?", screen.title)
 
   id = await activeId(ws)
-  check('focus is restored on the tile that was opened', id === tiles[0].id, id)
+  check('focus is restored on the history entry', id === historyId, id)
+
+  // ---- a kitchen with no matches ---------------------------------------
+  id = await pressUntil(ws, 'up', (value) => value === 'home-ingredient-input', 20)
+  check('the ingredient field is reachable from the bottom of the page', id === 'home-ingredient-input', id)
+
+  await typeText(ws, 'dragonfruit')
+  await press(ws, 'enter')
+  await sleep(250)
+
+  id = await pressUntil(ws, 'down', (value) => value === 'home-find-recipes', 3)
+  check('Find recipes is reachable again with a new kitchen', id === 'home-find-recipes', id)
+
+  await press(ws, 'enter')
+  const emptyTitle = await waitFor(
+    ws,
+    `document.querySelector('.results__empty-title')?.innerText`,
+    8000,
+  )
+  check(
+    'a kitchen with no matches gets the helpful empty state',
+    /No exact matches yet/.test(emptyTitle || ''),
+    emptyTitle,
+  )
+  const alternativeCount = await count(ws, '.results__empty .tile')
+  check(
+    'the empty state still offers alternative recipes',
+    alternativeCount > 0,
+    `${alternativeCount} alternatives`,
+  )
+  const alternativeTimes = await evaluate(
+    ws,
+    `Array.from(document.querySelectorAll('.results__empty .tile__meta-item'))
+       .map((el) => el.textContent.trim())
+       .filter((text) => text.endsWith(' min'))`,
+  )
+  check(
+    'alternatives never claim an implausible time',
+    alternativeTimes.every((label) => Number(label.replace('~', '').split(' ')[0]) >= 10),
+    alternativeTimes.join(', ') || 'no timed alternatives',
+  )
+  await evaluate(ws, `document.querySelector('.results')?.scrollIntoView({ block: 'center' })`)
+  await sleep(300)
+  await capture(ws, '07-empty-results')
 
   const consumed = await evaluate(ws, `window.cookcue ? window.cookcue.handleBack() : 'no-bridge'`)
   check('Back at the root is not consumed by the app', consumed === false, String(consumed))
-
-  // ---- re-entering cooking keeps the session and pauses the timer ------
-  await press(ws, 'enter')
-  await sleep(450)
-  await press(ws, 'right')
-  await press(ws, 'enter')
-  await sleep(450)
-  await pressUntil(ws, 'right', (v) => v === `ing-start-${recipeId}`)
-  await press(ws, 'enter')
-  await sleep(500)
-
-  screen = await evaluate(ws, screenInfo)
-  check('cooking mode can be re-entered', screen.title === 'Burst the tomatoes', screen.title)
-
-  const stepAgain = await evaluate(ws, `document.querySelector('.cooking__counter')?.innerText`)
-  check('the session keeps the current step', /step 2 of 4/i.test(stepAgain || ''), stepAgain)
-
-  const labelAgain = await evaluate(ws, `document.querySelector('.timer__label')?.innerText`)
-  check('the timer comes back paused', /paused/i.test(labelAgain || ''), labelAgain)
 
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '))
 }

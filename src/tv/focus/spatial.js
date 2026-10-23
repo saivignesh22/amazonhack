@@ -19,14 +19,35 @@ export function crossOverlap(a, b, axis) {
   return Math.max(0, Math.min(a[end], b[end]) - Math.max(a[start], b[start]))
 }
 
-// Off-axis distance is penalised so that "right" prefers the nearest item on
-// the same row over an item that is slightly closer but on another row.
-const CROSS_PENALTY = 3
-// Items that overlap the active element on the cross axis get a bonus.
-const ALIGNED_BONUS = 0.6
+/**
+ * Gap between the active element and a candidate along the direction of
+ * travel (always > 0 for candidates that are actually ahead).
+ */
+function forwardGap(direction, active, candidate) {
+  if (direction === 'right') return candidate.left - active.right
+  if (direction === 'left') return active.left - candidate.right
+  if (direction === 'down') return candidate.top - active.bottom
+  return active.top - candidate.bottom
+}
+
+// Candidates whose gap is within this band of the closest one are compared on
+// alignment instead of raw distance. Without the band, a wide element far down
+// the page (a full-width text field) beats the button directly below it,
+// because the wide element's centre is horizontally much closer.
+const BAND_MIN = 60
+const BAND_RATIO = 0.75
+// Cross-axis distance still breaks ties, and a candidate that is not aligned
+// at all is the last resort.
+const CROSS_WEIGHT = 1
+const UNALIGNED_PENALTY = 1000
 
 /**
  * Find the best candidate for a directional key press.
+ *
+ * Heuristic (tuned for a 10-foot UI):
+ * 1. only consider candidates that are ahead in the pressed direction;
+ * 2. keep the nearest "band" of candidates, so distance matters first;
+ * 3. inside the band prefer cross-axis overlap, then the closest centre.
  *
  * @param {DOMRect|object} activeRect rectangle of the currently focused item
  * @param {Array<{id: string, rect: object}>} entries candidate items
@@ -35,45 +56,37 @@ const ALIGNED_BONUS = 0.6
  */
 export function findNextCandidate(activeRect, entries, direction) {
   if (!activeRect || !entries || entries.length === 0) return null
+  if (direction !== 'left' && direction !== 'up' && direction !== 'right' && direction !== 'down') {
+    return null
+  }
 
-  const a = rectCenter(activeRect)
+  const forward = []
+  for (const entry of entries) {
+    if (!entry.rect) continue
+    const gap = forwardGap(direction, activeRect, entry.rect)
+    if (gap <= 1) continue
+    forward.push({ entry, gap })
+  }
+  if (forward.length === 0) return null
+
+  const nearest = Math.min(...forward.map((candidate) => candidate.gap))
+  const cutoff = nearest + Math.max(BAND_MIN, nearest * BAND_RATIO)
+  const band = forward.filter((candidate) => candidate.gap <= cutoff)
+
+  const activeCenter = rectCenter(activeRect)
+  const crossAxis = direction === 'left' || direction === 'right' ? 'y' : 'x'
+
   let best = null
   let bestScore = Infinity
 
-  for (const entry of entries) {
+  for (const { entry, gap } of band) {
     const rect = entry.rect
-    if (!rect) continue
-
-    const c = rectCenter(rect)
-    let forward
-    let cross
-    let crossAxis
-
-    if (direction === 'right') {
-      forward = c.x - a.x
-      cross = Math.abs(c.y - a.y)
-      crossAxis = 'y'
-    } else if (direction === 'left') {
-      forward = a.x - c.x
-      cross = Math.abs(c.y - a.y)
-      crossAxis = 'y'
-    } else if (direction === 'down') {
-      forward = c.y - a.y
-      cross = Math.abs(c.x - a.x)
-      crossAxis = 'x'
-    } else if (direction === 'up') {
-      forward = a.y - c.y
-      cross = Math.abs(c.x - a.x)
-      crossAxis = 'x'
-    } else {
-      return null
-    }
-
-    // Only consider items that are actually in the direction of travel.
-    if (forward <= 1) continue
-
+    const center = rectCenter(rect)
+    const cross =
+      crossAxis === 'x' ? Math.abs(center.x - activeCenter.x) : Math.abs(center.y - activeCenter.y)
     const aligned = crossOverlap(activeRect, rect, crossAxis) > 0
-    const score = forward + cross * CROSS_PENALTY - (aligned ? forward * ALIGNED_BONUS : 0)
+    const score =
+      (aligned ? 0 : UNALIGNED_PENALTY) + cross * CROSS_WEIGHT + gap * 0.1
 
     if (score < bestScore) {
       bestScore = score

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '../app/routerContext.js'
 import { useServices } from '../services/ServicesContext.js'
 import { FocusScope } from '../tv/focus/FocusScope.jsx'
+import { formatRecipeTime } from '../utils/recipeTime.js'
 import { AppHeader } from '../components/AppHeader.jsx'
 import { Button } from '../components/Button.jsx'
 
@@ -57,11 +58,24 @@ export default function DetailsScreen({ params, restoreFocusId }) {
 
           <div className="details__body">
             <div className="details__stats">
-              <Stat label="Time" value={`${recipe.totalMinutes} min`} />
-              <Stat label="Serves" value={recipe.servings} />
-              <Stat label="Difficulty" value={recipe.difficulty} />
-              <Stat label="Per serving" value={`${recipe.calories} kcal`} />
+              <Stat
+                label="Time"
+                value={formatRecipeTime(recipe) || 'Not listed'}
+              />
+              <Stat label="Serves" value={recipe.servings || 'Not listed'} />
+              <Stat label="Difficulty" value={recipe.difficulty || 'Not listed'} />
+              <Stat
+                label="Per serving"
+                value={recipe.calories ? `${recipe.calories} kcal` : 'Not listed'}
+              />
             </div>
+
+            {recipe.timeEstimated ? (
+              <p className="details__note">
+                Time is estimated from the timers in the steps; TheMealDB does not
+                publish a total time.
+              </p>
+            ) : null}
 
             <div className="details__columns">
               <div className="panel">

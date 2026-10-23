@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useKitchen } from '../app/useKitchen.js'
+import { setSearched } from '../app/kitchenState.js'
 import { useRouter } from '../app/routerContext.js'
 import { useServices } from '../services/ServicesContext.js'
 import { FocusScope } from '../tv/focus/FocusScope.jsx'
-import { RecipeTile } from '../components/RecipeTile.jsx'
 import { AppHeader } from '../components/AppHeader.jsx'
+import { CookingHistoryPanel } from '../components/CookingHistoryPanel.jsx'
+import { DishSearch } from '../components/DishSearch.jsx'
+import { IngredientInput } from '../components/IngredientInput.jsx'
+import { RecipeCard } from '../components/RecipeCard.jsx'
+import { RecipeTile } from '../components/RecipeTile.jsx'
+
+const PASTA_TITLE = /pasta|spaghetti|noodle|lasagne|linguine|macaroni|penne|rigatoni|tagliatelle/i
 
 function Row({ title, hint, recipes, onOpen, tileSize = 'large', rowId }) {
   if (!recipes || recipes.length === 0) return null
@@ -31,16 +39,24 @@ function Row({ title, hint, recipes, onOpen, tileSize = 'large', rowId }) {
 export default function HomeScreen({ restoreFocusId }) {
   const { recipes: recipeService } = useServices()
   const { navigate } = useRouter()
-  const [recipes, setRecipes] = useState([])
-  const [recommendations, setRecommendations] = useState([])
+  const { ingredients, searched } = useKitchen()
+
+  const [catalogue, setCatalogue] = useState([])
+  const [picks, setPicks] = useState([])
+  const [result, setResult] = useState(null)
+
+  const requestKey = ingredients.join('|')
+  // Derived, not stored: the moment the kitchen changes, the previous ranking
+  // is stale and we show the loading line until the matching result arrives.
+  const loading = searched && ingredients.length > 0 && result?.key !== requestKey
 
   useEffect(() => {
     let alive = true
     Promise.all([recipeService.listRecipes(), recipeService.getRecommendations()]).then(
-      ([all, picks]) => {
+      ([all, recommended]) => {
         if (!alive) return
-        setRecipes(all)
-        setRecommendations(picks)
+        setCatalogue(all)
+        setPicks(recommended)
       },
     )
     return () => {
@@ -48,64 +64,63 @@ export default function HomeScreen({ restoreFocusId }) {
     }
   }, [recipeService])
 
-  const quick = useMemo(
-    () => recipes.filter((recipe) => recipe.totalMinutes <= 30).slice(0, 6),
-    [recipes],
-  )
+  // Re-rank whenever the kitchen changes after the first "Find recipes", so
+  // removing a chip immediately updates what the user can cook.
+  useEffect(() => {
+    if (!searched || ingredients.length === 0) return undefined
+    let alive = true
+    recipeService.recommendByIngredients(ingredients).then((next) => {
+      if (!alive) return
+      setResult({ ...next, key: ingredients.join('|') })
+    })
+    return () => {
+      alive = false
+    }
+  }, [recipeService, searched, ingredients])
 
-  const pantryPicks = useMemo(
-    () =>
-      recipes
-        .filter((recipe) =>
-          recipe.ingredients.some((ingredient) =>
-            ['olive oil', 'garlic', 'tomato'].includes(ingredient.pantryKey),
-          ),
-        )
-        .slice(0, 6),
-    [recipes],
+  const pasta = useMemo(
+    () => catalogue.filter((recipe) => PASTA_TITLE.test(recipe.title)).slice(0, 8),
+    [catalogue],
   )
 
   const openRecipe = (recipe) => navigate('details', { id: recipe.id })
 
   return (
-    <FocusScope initialFocusId={restoreFocusId}>
+    <FocusScope initialFocusId={restoreFocusId} defaultFocusId="home-ingredient-input">
       <div className="screen">
         <AppHeader />
         <div className="screen__body scroll-y">
-          <div className="hero">
-            <p className="hero__eyebrow">Tonight</p>
-            <h1 className="hero__title">What are we cooking?</h1>
-            <p className="hero__sub">
-              Pick a recipe, tell us what is in the kitchen, and we will guide you through every
-              step.
-            </p>
-          </div>
+          <IngredientInput onFind={() => setSearched(true)} />
+
+          {searched ? (
+            <Recommendations
+              result={result}
+              loading={loading}
+              ingredients={ingredients}
+              onOpen={openRecipe}
+            />
+          ) : null}
+
+          <DishSearch />
 
           <Row
-            title="Recommended for you"
-            hint="Based on what you have"
-            recipes={recommendations.slice(0, 4)}
+            title="Quick dinners"
+            hint="Under 45 minutes"
+            recipes={picks.slice(0, 8)}
             rowId="picks"
             onOpen={openRecipe}
           />
 
           <Row
-            title="On the table in 30 minutes"
-            hint="Quick wins"
-            recipes={quick}
-            rowId="quick"
+            title="Pasta night"
+            hint="Twirl something together"
+            recipes={pasta}
+            rowId="pasta"
             tileSize="small"
             onOpen={openRecipe}
           />
 
-          <Row
-            title="Because you have olive oil, garlic and tomatoes"
-            hint="Uses what is in your kitchen"
-            recipes={pantryPicks}
-            rowId="pantry"
-            tileSize="small"
-            onOpen={openRecipe}
-          />
+          <CookingHistoryPanel onOpen={(entry) => navigate('details', { id: entry.id })} />
 
           <footer className="home-foot">
             <span className="home-foot__hint">
@@ -115,5 +130,73 @@ export default function HomeScreen({ restoreFocusId }) {
         </div>
       </div>
     </FocusScope>
+  )
+}
+
+function Recommendations({ result, loading, ingredients, onOpen }) {
+  const matches = result?.matches || []
+  const alternatives = result?.alternatives || []
+  const total = result?.total || 0
+
+  return (
+    <section className="results" aria-labelledby="results-title">
+      <div className="row__head">
+        <h2 className="row__title" id="results-title">
+          Recipes you can make
+        </h2>
+        <span className="row__hint">Using {ingredients.join(', ')}</span>
+      </div>
+
+      {loading ? <p className="results__status">Looking through the recipes…</p> : null}
+
+      {!loading && matches.length > 0 ? (
+        <>
+          <p className="results__count">
+            {matches.length} recipe{matches.length === 1 ? '' : 's'} ranked by how much of your
+            kitchen {matches.length === 1 ? 'it uses' : 'they use'}.
+          </p>
+
+          {matches.length < 6 ? (
+            <p className="results__note">
+              Only {matches.length} of {total} recipes come close with these ingredients — the rest
+              need more than you have right now. Adding one more ingredient usually opens things up.
+            </p>
+          ) : null}
+
+          <div className="row__track scroll-x">
+            {matches.map(({ recipe, score, missing }) => (
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                match={{ score, missing }}
+                onSelect={() => onOpen(recipe)}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {!loading && matches.length === 0 ? (
+        <div className="results__empty">
+          <p className="results__empty-title">
+            No exact matches yet. Try adding another ingredient or explore these alternative
+            recipes.
+          </p>
+          {alternatives.length > 0 ? (
+            <div className="row__track scroll-x">
+              {alternatives.map((recipe) => (
+                <RecipeTile
+                  key={recipe.id}
+                  recipe={recipe}
+                  rowId="alternative"
+                  size="small"
+                  onSelect={() => onOpen(recipe)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
   )
 }

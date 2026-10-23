@@ -10,8 +10,10 @@ import { useScope } from './ScopeContext.js'
  * @param {() => void} [options.onSelect] called when the user presses Select
  * @param {boolean} [options.disabled] when true the element is skipped
  * @param {string} [options.group] optional grouping hint (e.g. a row)
+ * @param {boolean} [options.editable] text field: Left/Right move the caret
+ *   instead of moving focus (Up/Down still leave the field)
  */
-export function useFocusable({ id, onSelect, disabled = false, group }) {
+export function useFocusable({ id, onSelect, disabled = false, group, editable = false }) {
   const focus = useContext(FocusContext)
   const scope = useScope()
   const ref = useRef(null)
@@ -31,10 +33,11 @@ export function useFocusable({ id, onSelect, disabled = false, group }) {
       scope,
       group,
       disabled,
+      editable,
       onSelect: (event) => onSelectRef.current?.(event),
     })
     return unregister
-  }, [id, focus, scope, group, disabled])
+  }, [id, focus, scope, group, disabled, editable])
 
   const focusableProps = {
     ref,

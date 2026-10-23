@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '../app/routerContext.js'
 import { useServices } from '../services/ServicesContext.js'
 import { resetCookingSession } from '../app/cookingState.js'
+import { imageFor } from '../services/recipeImages.js'
+import { formatRecipeTime } from '../utils/recipeTime.js'
 import { FocusScope } from '../tv/focus/FocusScope.jsx'
 import { AppHeader } from '../components/AppHeader.jsx'
 import { Button } from '../components/Button.jsx'
 
 export default function CompletionScreen({ params, restoreFocusId }) {
-  const { recipes: recipeService } = useServices()
+  const { recipes: recipeService, history } = useServices()
   const { navigate, reset } = useRouter()
   const [recipe, setRecipe] = useState(null)
 
@@ -20,6 +22,18 @@ export default function CompletionScreen({ params, restoreFocusId }) {
       alive = false
     }
   }, [recipeService, params.id])
+
+  // The only place a recipe is marked as cooked. Browsing a recipe (details,
+  // ingredients, cooking) never records anything; finishing the last step
+  // lands here and this effect writes the history entry.
+  useEffect(() => {
+    if (!recipe) return
+    history.record({
+      id: recipe.id,
+      title: recipe.title,
+      image: recipe.image || imageFor(recipe.id),
+    })
+  }, [history, recipe])
 
   if (!recipe) {
     return (
@@ -49,14 +63,18 @@ export default function CompletionScreen({ params, restoreFocusId }) {
             </span>
             <h1 className="done__title">Dinner is ready</h1>
             <p className="done__subtitle">
-              {recipe.title} — served for {recipe.servings}.
+              {recipe.title}
+              {recipe.servings ? ` — served for ${recipe.servings}.` : ' — served hot.'}
             </p>
 
             <div className="done__stats">
-              <Stat label="Time in the kitchen" value={`${recipe.totalMinutes} min`} />
+              <Stat
+                label="Time in the kitchen"
+                value={formatRecipeTime(recipe) || 'Not listed'}
+              />
               <Stat label="Steps completed" value={recipe.steps.length} />
               <Stat label="Ingredients used" value={recipe.ingredients.length} />
-              <Stat label="Difficulty" value={recipe.difficulty} />
+              <Stat label="Difficulty" value={recipe.difficulty || 'Not listed'} />
             </div>
 
             <div className="done__actions">

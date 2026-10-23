@@ -22,6 +22,14 @@ export default function App() {
   // In a desktop browser the Escape key stands in for the remote Back key.
   useEffect(() => {
     const onKeyDown = (event) => {
+      // keys.js maps Backspace to Back for the remote's convenience, but in a
+      // text field Backspace is Delete and must never navigate.
+      const target = event.target
+      const editing =
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      if (editing && event.key === 'Backspace') return
+
       if (resolveAction(event) === 'back') {
         const handled = requestBack()
         if (handled) event.preventDefault()
