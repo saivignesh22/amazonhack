@@ -520,13 +520,14 @@
 
 .ingredients {
   display: grid;
-  grid-template-columns: 62% 38%;
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
   gap: var(--sp-7);
   align-items: start;
 }
 
 .ingredients__list {
-  padding-right: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-4);
 }
 
 .ingredients__title {
