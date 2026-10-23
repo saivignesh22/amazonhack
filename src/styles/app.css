@@ -25,7 +25,11 @@
 .screen__body {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   padding-right: var(--sp-2);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 /* ---------------------------------------------------------------- header -- */
@@ -154,7 +158,7 @@
 .row__track {
   display: flex;
   gap: var(--sp-4);
-  padding: var(--sp-2) var(--sp-2) var(--sp-4);
+  padding: 12px 20px 20px;
 }
 
 /* ---------------------------------------------------------------- tiles -- */
@@ -349,9 +353,12 @@
 
 .details {
   display: grid;
-  grid-template-columns: 44% 56%;
-  gap: var(--sp-7);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 28px;
   align-items: start;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .details__hero {
@@ -773,15 +780,29 @@
 
 .panel--timer {
   text-align: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.panel--timer .timer__label {
+  overflow-wrap: anywhere;
 }
 
 .timer__digits {
-  font-size: var(--fs-timer);
+  font-size: clamp(56px, 5vw, 96px);
   font-weight: var(--fw-bold);
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .timer--running .timer__digits {
@@ -808,8 +829,21 @@
 .timer__controls {
   margin-top: var(--sp-5);
   display: flex;
-  gap: var(--sp-3);
+  flex-wrap: nowrap;
+  gap: 12px;
   justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.timer__controls button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .upnext__text {
@@ -1494,4 +1528,599 @@
   color: var(--saffron);
   font-size: var(--fs-small);
   font-weight: var(--fw-semibold);
+}
+
+
+/* Fire TV layout fixes */
+.screen {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.screen__body {
+  min-width: 0;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 24px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.details__hero {
+  min-height: 0;
+  min-width: 0;
+}
+
+.details__body,
+.details__columns,
+.ingredients,
+.cooking,
+.cooking__main,
+.cooking__side {
+  min-width: 0;
+}
+
+.details__columns {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.cooking {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 28px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cooking__title {
+  font-size: clamp(32px, 3.2vw, 54px);
+  overflow-wrap: anywhere;
+}
+
+.cooking__text {
+  font-size: clamp(22px, 2vw, 32px);
+  overflow-wrap: anywhere;
+}
+
+.step-preview__row,
+.ingredient-preview__row {
+  min-width: 0;
+}
+
+.step-preview__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.details__actions,
+.ingredients__actions,
+.cooking__actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+@media (max-height: 800px) {
+  .screen {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+
+  .app-header {
+    padding-bottom: 20px;
+  }
+
+  .details__hero {
+    padding: 28px;
+  }
+
+  .details__title {
+    font-size: clamp(34px, 4vw, 54px);
+  }
+
+  .details__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .details__body {
+    gap: 16px;
+  }
+
+  .details__columns {
+    gap: 16px;
+  }
+
+  .step-preview__row,
+  .ingredient-preview__row {
+    padding: 8px 0;
+  }
+}
+
+
+.screen--cooking {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  min-height: 0;
+}
+
+
+.cooking {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: visible;
+  align-items: stretch;
+  padding-bottom: 12px;
+}
+
+.cooking__main {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+
+
+.cooking__side {
+  min-width: 0;
+  min-height: 0;
+}
+
+.cooking__main,
+.cooking__side {
+  min-width: 0;
+  min-height: 0;
+  overflow-wrap: anywhere;
+}
+.cooking__actions {
+  flex-shrink: 0;
+  padding-top: 16px;
+}
+
+/* CookCue: keep cooking side panels visible on Fire TV */
+.screen--cooking .cooking__side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 12px;
+}
+
+.screen--cooking .panel--timer,
+.screen--cooking .panel--hint {
+  flex-shrink: 0;
+}
+
+.screen--cooking .panel--hint {
+  padding: 20px;
+}
+
+.screen--cooking .panel--hint .panel__title {
+  margin-bottom: 12px;
+}
+
+.screen--cooking .upnext__text {
+  font-size: clamp(18px, 2vw, 28px);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.screen--cooking .upnext__time {
+  font-size: 16px;
+}
+
+
+/* CookCue Fire TV: fit cooking controls into a 540px viewport */
+@media (max-height: 600px) {
+  .screen--cooking {
+    padding: 12px 28px 10px;
+    gap: 0;
+  }
+
+  .screen--cooking .app-header {
+    padding-bottom: 10px;
+    gap: 12px;
+  }
+
+  .screen--cooking .cooking {
+    flex: 1 1 0;
+    min-height: 0;
+    gap: 16px;
+    padding-bottom: 8px;
+    overflow: hidden;
+  }
+
+  .screen--cooking .cooking__main {
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+
+  .screen--cooking .cooking__side {
+    min-height: 0;
+    overflow-y: auto;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+
+  .screen--cooking .panel--timer,
+  .screen--cooking .panel--hint {
+    padding: 12px;
+  }
+
+  .screen--cooking .panel__title {
+    margin-bottom: 6px;
+  }
+
+  .screen--cooking .timer__digits {
+    font-size: clamp(36px, 5vh, 48px);
+  }
+
+  .screen--cooking .timer__label {
+    margin-top: 4px;
+    font-size: 14px;
+  }
+
+  .screen--cooking .timer__controls {
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .screen--cooking .timer__controls .btn,
+  .screen--cooking .cooking__actions .btn {
+    padding: 10px 16px;
+    font-size: 16px;
+  }
+
+  .screen--cooking .upnext__text {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .screen--cooking .cooking__actions {
+    gap: 10px;
+    padding-top: 8px;
+  }
+}
+
+
+/* CookCue Fire TV: full-width recipe details */
+@media (max-height: 600px) {
+  .screen:has(> .details) {
+    padding: 12px 28px;
+    gap: 0;
+    min-height: 0;
+  }
+
+  .screen:has(> .details) > .app-header {
+    flex: 0 0 auto;
+    padding-bottom: 10px;
+  }
+
+  /* Give the entire screen to recipe information */
+  .screen > .details {
+    flex: 1 1 0;
+    min-height: 0;
+    display: block;
+    overflow: hidden;
+  }
+
+  /* Hide the oversized decorative hero on short TVs */
+  .details > .details__hero {
+    display: none;
+  }
+
+  .details > .details__body {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  /* Compact recipe stats into one row */
+  .details__stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .details__stats .stat {
+    min-width: 0;
+    padding: 8px;
+  }
+
+  .details__stats .stat__value {
+    font-size: 20px;
+    overflow-wrap: anywhere;
+  }
+
+  .details__stats .stat__label {
+    font-size: 12px;
+  }
+
+  .details__note {
+    display: none;
+  }
+
+  /* Two wide panels share the available middle space */
+  .details__columns {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .details__columns > .panel {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 16px;
+  }
+
+  .details__columns .panel__title {
+    margin-bottom: 6px;
+    font-size: 18px;
+  }
+
+  .ingredient-preview__row,
+  .step-preview__row {
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 15px;
+  }
+
+  .ingredient-preview__name,
+  .step-preview__title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .ingredient-preview__amount {
+    white-space: normal;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  .step-preview__index {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+    font-size: 12px;
+  }
+
+  /* All three actions on one centered row */
+  .details__actions {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+  }
+
+  .details__actions .btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+}
+
+
+/* Fire TV recipe details: ingredient-first layout */
+@media (max-height: 600px) {
+  .screen--details {
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    padding: 12px 28px 10px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .screen--details > .app-header {
+    flex: 0 0 auto;
+    padding-bottom: 10px;
+  }
+
+  .screen--details > .details--ingredients {
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .details--ingredients > .details__body {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .details__ingredients-panel {
+    min-height: 0;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 20px;
+  }
+
+  .details__ingredients-panel > .panel__title {
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+
+  .details__ingredients-panel .ingredient-preview {
+    display: grid;
+    align-content: start;
+    gap: 4px 28px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .details__ingredients-panel .ingredient-preview--one-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .details__ingredients-panel .ingredient-preview--two-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .details__ingredients-panel .ingredient-preview__row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 7px 0;
+    font-size: 16px;
+    line-height: 1.2;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .details__ingredients-panel .ingredient-preview__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .details__ingredients-panel .ingredient-preview__amount {
+    flex: 0 1 auto;
+    max-width: 45%;
+    text-align: right;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+  }
+
+  .screen--details .details__actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+    margin: 0;
+  }
+
+  .screen--details .details__actions .btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+}
+/* Fix clipped remote-focus highlight on ingredient rows */
+.ingredients,
+.ingredients__list,
+.ing-list {
+  min-width: 0;
+}
+
+.ingredients__list {
+  padding-left: 16px;
+  padding-right: var(--sp-4);
+  overflow: visible;
+}
+
+.ing-row {
+  transform: none;
+}
+
+/* CookCue: prevent remote-focus scaling from clipping borders */
+[data-focusable][data-focus-active='true'] {
+  transform: none !important;
+}
+
+/* Fire TV: allow home content and recipe rows to fit and scroll */
+@media (max-height: 600px) {
+  .screen__body {
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 24px;
+  }
+
+  .screen__body .row {
+    margin-bottom: 16px;
+  }
+
+  .screen__body .row__track {
+    padding: 12px 16px 20px;
+    overflow: visible;
+  }
+
+  .screen__body .tile {
+    flex-shrink: 0;
+  }
+}
+
+/* Fire TV: fit the completion screen within the viewport */
+@media (max-height: 600px) {
+  .screen:has(.done) {
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    padding: 12px 28px;
+    overflow: hidden;
+  }
+
+  .screen:has(.done) > .app-header {
+    padding-bottom: 10px;
+    flex-shrink: 0;
+  }
+
+  .screen:has(.done) > .screen__body {
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .done__hero {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 24px 28px;
+  }
+
+  .done__title {
+    font-size: clamp(36px, 5vh, 48px);
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .done__subtitle {
+    margin-top: 12px;
+    font-size: 20px;
+  }
+
+  .done__stats {
+    margin: 24px 0;
+    gap: 10px;
+  }
+
+  .done__actions {
+    gap: 12px;
+    justify-content: center;
+  }
 }

@@ -48,12 +48,31 @@ export default function CookingScreen({ params, restoreFocusId }) {
   const step = recipe ? recipe.steps[stepIndex] : null
 
   useEffect(() => {
+    if (!recipe || !step) return
+
+    const narration = [
+      step.title,
+      step.text,
+      step.tip ? `Chef tip: ${step.tip}` : ''
+    ]
+      .filter(Boolean)
+      .join('. ')
+
+    window.AndroidVoice?.speak(narration)
+
+    return () => {
+      window.AndroidVoice?.stop()
+    }
+  }, [recipe, stepIndex])
+
+  useEffect(() => {
     if (!recipe || !step) return undefined
 
     const timer = getStepTimer(timerService, recipe.id, step)
     timerRef.current = timer
     if (!timer) return undefined
 
+    
     const unsubscribe = timer.subscribe((state) => {
       setTimerState(state)
       if (state.status === 'done') {
@@ -62,7 +81,6 @@ export default function CookingScreen({ params, restoreFocusId }) {
       }
     })
 
-    if (timer.getState().status === 'idle') timer.start()
 
     return () => {
       unsubscribe()
@@ -87,13 +105,25 @@ export default function CookingScreen({ params, restoreFocusId }) {
 
   const repeatStep = () => {
     if (!session) return
+
     session.repeat()
+
+    const narration = [
+      step.title,
+      step.text,
+      step.tip ? `Chef tip: ${step.tip}` : ''
+    ]
+      .filter(Boolean)
+      .join('. ')
+
+    window.AndroidVoice?.speak(narration)
+
     const timer = timerRef.current
     if (timer) {
       timer.stop()
-      timer.start()
     }
   }
+
 
   const dismissAlert = () => {
     setAlertOpen(false)

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect} from 'react'
 import { ServicesProvider } from './services/ServicesProvider.jsx'
 import { FocusProvider } from './tv/focus/FocusProvider.jsx'
 import { RouterProvider } from './app/router.jsx'
@@ -40,12 +40,14 @@ export default function App() {
   }, [])
 
   return (
-    <ServicesProvider>
-      <FocusProvider>
-        <RouterProvider>
-          <AppShell />
-        </RouterProvider>
-      </FocusProvider>
-    </ServicesProvider>
+    <>
+      <ServicesProvider>
+        <FocusProvider>
+          <RouterProvider>
+            <AppShell />
+          </RouterProvider>
+        </FocusProvider>
+      </ServicesProvider>
+    </>
   )
 }

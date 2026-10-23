@@ -32,7 +32,7 @@
   --focus: #f7c65a;
   --focus-ring: 0 0 0 3px var(--focus), 0 0 0 8px rgba(247, 198, 90, 0.22),
     0 18px 40px rgba(0, 0, 0, 0.5);
-  --focus-scale: 1.035;
+  --focus-scale: 1;
 
   /* Type scale (1080p) */
   --fs-hero: 68px;
@@ -68,8 +68,8 @@
   --r-pill: 999px;
 
   /* Layout */
-  --screen-pad-x: 96px;
-  --screen-pad-y: 56px;
+  --screen-pad-x: clamp(24px, 5vw, 64px);
+  --screen-pad-y: clamp(16px, 3vh, 32px);
 
   --sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --serif: 'Georgia', 'Times New Roman', serif;

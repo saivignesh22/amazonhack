@@ -24,7 +24,6 @@ const GRADIENTS = [
 
 const MOTIFS = ['round', 'wide', 'square']
 
-const MAX_STEPS = 12
 
 /**
  * TheMealDB does not publish a total time, so the only time data is the
@@ -85,6 +84,7 @@ function splitSentences(block) {
  * @param {string} instructions
  * @returns {string[]}
  */
+
 export function splitInstructionBlocks(instructions) {
   const lines = String(instructions || '')
     .replace(/\r/g, '')
@@ -93,55 +93,40 @@ export function splitInstructionBlocks(instructions) {
     .filter(Boolean)
 
   const blocks = []
+  let pendingHeading = ''
+
   for (const line of lines) {
     if (STEP_MARKER.test(line)) continue
+
     const text = line.replace(STEP_PREFIX, '').trim()
     if (!text) continue
 
-    // A very short line is usually a heading ("For the sauce:") - keep it with
-    // the next instruction instead of making it its own step.
-    if (text.length < 18 && text.endsWith(':') && blocks.length >= 0) {
-      blocks.push({ heading: true, text })
+    // Attach short headings to the following instruction.
+    if (text.length < 18 && text.endsWith(':')) {
+      pendingHeading += `${pendingHeading ? ' ' : ''}${text}`
       continue
     }
 
-    const previous = blocks[blocks.length - 1]
-    if (previous && !previous.heading && text.length < 25 && !/[.!?]$/.test(previous.text)) {
-      previous.text = `${previous.text} ${text}`
-      continue
-    }
-
-    blocks.push({ heading: false, text })
-  }
-
-  // Fold headings into whatever follows them.
-  const merged = []
-  let pendingHeading = ''
-  for (const block of blocks) {
-    if (block.heading) {
-      pendingHeading = pendingHeading ? `${pendingHeading} ${block.text}` : block.text
-      continue
-    }
-    merged.push(pendingHeading ? `${pendingHeading} ${block.text}` : block.text)
+    const instruction = `${pendingHeading ? `${pendingHeading} ` : ''}${text}`
     pendingHeading = ''
-  }
-  if (pendingHeading) merged.push(pendingHeading)
 
-  // A recipe written as one long paragraph still deserves a readable step
-  // list, so group its sentences a few at a time.
-  if (merged.length === 1 && merged[0].length > 260) {
-    const sentences = splitSentences(merged[0])
-    if (sentences.length >= 4) {
-      const grouped = []
-      for (let i = 0; i < sentences.length; i += 2) {
-        grouped.push(sentences.slice(i, i + 2).join(' '))
-      }
-      return grouped
+    // Break long paragraphs into individual sentences.
+    const sentences = splitSentences(instruction)
+
+    if (sentences.length > 1) {
+      blocks.push(...sentences)
+    } else {
+      blocks.push(instruction)
     }
   }
 
-  return merged
+  if (pendingHeading) {
+    blocks.push(pendingHeading)
+  }
+
+  return blocks
 }
+
 
 function titleAndText(block, index) {
   const sentences = splitSentences(block)
@@ -166,12 +151,7 @@ export function stepsFromInstructions(instructions, recipeId) {
 
   // Keep the list skimmable on a TV: fold anything past the cap into the last
   // step rather than making the user tap through twenty screens.
-  let list = blocks
-  if (list.length > MAX_STEPS) {
-    const head = list.slice(0, MAX_STEPS - 1)
-    const tail = list.slice(MAX_STEPS - 1).join(' ')
-    list = [...head, tail]
-  }
+  const list = blocks
 
   return list.map((block, index) => {
     const { title, text } = titleAndText(block, index)

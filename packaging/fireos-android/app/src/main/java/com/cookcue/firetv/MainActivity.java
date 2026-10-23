@@ -20,6 +20,10 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import android.speech.tts.TextToSpeech;
+import android.webkit.JavascriptInterface;
+import java.util.Locale;
+
 /**
  * CookCue on Fire OS.
  *
@@ -39,6 +43,44 @@ public class MainActivity extends AppCompatActivity {
             "https://appassets.androidplatform.net/assets/www/index.html";
 
     private WebView webView;
+    private TextToSpeech textToSpeech;
+    private boolean ttsReady = false;
+
+    private class AndroidVoiceBridge {
+
+        @JavascriptInterface
+        public void speak(String text) {
+            runOnUiThread(() -> {
+                if (textToSpeech != null && ttsReady && text != null) {
+                    textToSpeech.speak(
+                            text,
+                            TextToSpeech.QUEUE_FLUSH,
+                            null,
+                            "cookcue_step"
+                    );
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void stop() {
+            runOnUiThread(() -> {
+                if (textToSpeech != null) { 
+                    textToSpeech.stop();
+                }
+            });
+        }
+    }
+
+    private void initializeTextToSpeech() {
+        textToSpeech = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                int result = textToSpeech.setLanguage(Locale.US);
+                ttsReady = result != TextToSpeech.LANG_MISSING_DATA
+                        && result != TextToSpeech.LANG_NOT_SUPPORTED;
+            }
+        });
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -61,6 +103,13 @@ public class MainActivity extends AppCompatActivity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        
+        initializeTextToSpeech();
+
+        webView.addJavascriptInterface(
+                new AndroidVoiceBridge(),
+                "AndroidVoice"
+        );
         // The timer alert plays a short beep, which the WebView would
         // otherwise block as an unrequested autoplay.
         settings.setMediaPlaybackRequiresUserGesture(false);
@@ -120,13 +169,21 @@ public class MainActivity extends AppCompatActivity {
             webView.saveState(outState);
         }
     }
-
     @Override
     protected void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+            textToSpeech = null;
+            ttsReady = false;
+        }
+
         if (webView != null) {
             webView.destroy();
             webView = null;
         }
+
         super.onDestroy();
     }
+
 }
