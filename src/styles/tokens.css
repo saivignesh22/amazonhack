@@ -68,8 +68,8 @@
   --r-pill: 999px;
 
   /* Layout */
-  --screen-pad-x: 96px;
-  --screen-pad-y: 56px;
+  --screen-pad-x: clamp(24px, 5vw, 64px);
+  --screen-pad-y: clamp(16px, 3vh, 32px);
 
   --sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --serif: 'Georgia', 'Times New Roman', serif;

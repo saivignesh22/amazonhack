@@ -160,7 +160,7 @@ export function FocusProvider({ children }) {
       if (isActive) {
         el.setAttribute('data-focus-active', 'true')
         if (document.activeElement !== el) el.focus({ preventScroll: true })
-        el.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
       } else if (el.getAttribute('data-focus-active')) {
         el.removeAttribute('data-focus-active')
       }
